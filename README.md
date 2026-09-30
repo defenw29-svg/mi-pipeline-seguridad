@@ -1,8 +1,8 @@
-My Pipeline Security 
+[![Security Pipeline v2.1](https://github.[STRIPPED 66 bytes].yml/badge.svg?branch=principal)](https://github.com/defenw29-svg/mi-pipeline-seguridad/actions/workflows/seguridad.yml)
 
-<img width="2048" height="1152" alt="828311729_2914248222242947_3448804082577344125_n" src="https://github.com/user-attachments/assets/228c1f67-a61d-4808-bd73-e41ac405f8eb" />
+![SOC L1 - Ivan Ajenjo Morales](https://github.[STRIPPED 79 bytes].png?raw=true)
 
-## 🛠️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
+## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
 
