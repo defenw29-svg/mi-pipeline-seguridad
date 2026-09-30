@@ -1,6 +1,5 @@
 # mi-pipeline-seguridad
 
-[![Estado del Pipeline](https://github.[STRIPPED 65 bytes].yml/badge.svg)](https://github.com/defenw29-svg/mi-pipeline-seguridad/actions/workflows/security.yml)
 
 ## 🛠️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
