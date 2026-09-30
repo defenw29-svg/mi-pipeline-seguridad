@@ -1,5 +1,7 @@
 # mi-pipeline-seguridad
 
+<img width="2048" height="1152" alt="828311729_2914248222242947_3448804082577344125_n" src="https://github.com/user-attachments/assets/228c1f67-a61d-4808-bd73-e41ac405f8eb" />
+
 
 ## 🛠️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
