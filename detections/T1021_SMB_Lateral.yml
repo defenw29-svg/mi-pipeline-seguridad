@@ -1,0 +1,16 @@
+title: Posible movimiento lateral SMB - T1021
+id: 8a9b1c2d-1234-5678-90ab-cdef12345678
+status: experimental
+description: Detecta intentos de enumeracion SMB tras compromiso vsftpd
+logsource:
+  product: linux
+  service: ufw
+detection:
+  selection:
+    dst_port: 445
+    action: BLOCK
+  condition: selection
+level: high
+tags:
+    - attack.lateral_movement
+    - attack.t1021
