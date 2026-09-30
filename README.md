@@ -1,7 +1,8 @@
 My Pipeline Seguridad automátizado
 
-<img width="2048" height="1152" alt="828311729_2914248222242947_3448804082577344125_n" src="https://github.com/user-attachments/assets/d53fe71d-ba80-4c4b-8e23-adf8159e605e" />
+[![Security Pipeline v2.1](https://github.[STRIPPED 66 bytes].yml/badge.svg?branch=main)](https://github.com/defenw29-svg/mi-pipeline-seguridad/actions/workflows/seguridad.yml)
 
+![SOC L1 - Ivan Ajenjo Morales](./Banner.png)
 
 ## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
