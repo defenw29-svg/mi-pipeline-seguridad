@@ -1,0 +1,18 @@
+title: Borrado de evidencias de logs - T1070
+id: 2b3c4d5e-6789-0abc-def0-234567890abc
+status: experimental
+description: Detecta comando de borrado de logs /var/log asociado a evasion de defensa
+logsource:
+  product: linux
+  category: process_creation
+detection:
+  selection:
+    CommandLine|contains:
+            - 'rm -rf /var/log'
+            - 'shred /var/log'
+            - '> /var/log/auth.log'
+  condition: selection
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.t1070
