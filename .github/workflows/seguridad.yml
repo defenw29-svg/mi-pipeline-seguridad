@@ -1,10 +1,10 @@
-name: Security Pipeline v2
+name: Security Pipeline v2.1 - SOC L1 Remediation
 
 on:
   push:
-    branches: [ "principal" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "principal" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -13,21 +13,18 @@ permissions:
 
 jobs:
   secret-scan:
-    name: Secret Audit
+    name: 1. Secret Audit (Gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Gitleaks Scan
-        uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   static-analysis:
-    name: CodeQL SAST Analysis
+    name: 2. CodeQL SAST Analysis
     runs-on: ubuntu-latest
     needs: secret-scan
     strategy:
@@ -35,38 +32,29 @@ jobs:
       matrix:
         language: [ 'javascript-typescript' ]
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
 
   dependency-scan:
-    name: Dependency Audit (Trivy)
+    name: 3. Dependency Audit (Trivy)
     runs-on: ubuntu-latest
     needs: secret-scan
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Run Trivy Scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: 'fs'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy Results
-        uses: github/codeql-action/upload-sarif@v3
+          exit-code: '1'
+          ignore-unfixed: true
+      - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
