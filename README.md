@@ -36,7 +36,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 ### 🔍 Nota Técnica: Evolución hacia Threat Hunting (SOC Tier 3)
 
-Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
+🛡️Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
 
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
