@@ -54,6 +54,18 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 🛡️Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
 
+#### 🔐 Refuerzo Gitleaks - Control Preventivo T1078
+
+**¿Qué hace?** Escaneo profundo de secretos (API keys, tokens, `.env`, claves SSH) en código y en **historial completo de git**, no solo en el último commit.
+
+**Configuración endurecida en este pipeline:**
+```yaml
+- name: Gitleaks Secret Scan
+  uses: gitleaks/gitleaks-action@v2
+  with:
+    args: --redact --verbose --no-git --report-format=sarif --report-path=gitleaks.sarif
+
+
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
 
