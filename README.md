@@ -34,3 +34,11 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 3. **Acción del Analista SOC:** El analista recibe la alerta con la línea exacta afectada y la sugerencia de parcheo (ej. *Actualizar paquete a versión X.X*). El despliegue técnico queda congelado hasta que el parche sea aplicado con éxito en el entorno local. MIT License | Copyright (c) 2026 Iván Ajenjo Morales
 
+## Resumen del laboratorio actual
+
+**Equipo-azul-laboratorio-sociedad-l1-l2:** Laboratorio de parcheo y endurecimiento para **SOC 1 / SOC 2**.
+
+Validación de ciclo de vida de parches en Ubuntu y Windows, deshabilitado de SMBv1 y cierre de puertos (vsftpd/21) con UFW.
+
+**Autor:** Iván Ajenjo Morales | SOC 1 / SOC 2 ITIL SecOps | Licencia MIT
+
