@@ -14,8 +14,11 @@ Como medida de **endurecimiento y prevención continua (Hardening)** para mitiga
 | Fase del Pipeline | Herramienta | Objetivo Técnico | Tipo de Control |
 | :--- | :--- | :--- | :--- |
 | **1. Secret Scanning** | `Gitleaks` | Detectar credenciales, API keys o tokens SSH expuestos en el código fuente. | Preventivo (Bloquea el push) |
+
 | **2. SAST Analysis** | `GitHub CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
+
 | **3. SCA Scan** | `Aqua Trivy` | Escanear el árbol de dependencias (`packages`, librerías de terceros) contra CVEs conocidos. | Preventivo (Filtra severidad Alta/Crítica) |
+
 | **4. CD Deployment** | `GitHub Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
 
 ---
