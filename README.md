@@ -40,6 +40,18 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 ![MITRE Map](INFOGRAFIA_MITRE_TIER3.jpg)
 
+> **Leyenda MITRE ATT&CK - Mapeo del laboratorio:**
+
+| Técnica | Nombre | Fase MITRE | Control en este pipeline |
+|---|---|---|---|
+| **T1078** | Valid Accounts | Initial Access / Persistence | **Gitleaks**: bloquea `git push` si detecta tokens, API keys o credenciales SSH expuestas |
+| **T1190** | Exploit Public-Facing Application | Initial Access | **CodeQL (SAST) + Trivy (SCA)**: detecta inyecciones, XSS y CVEs en librerías de terceros |
+| **T1059** | Command and Scripting Interpreter | Execution | **Hipótesis de Hunting (Tier 3)**: búsqueda de `bash`, `python`, `powershell` en `/tmp` / `crontab` |
+| **T1070** | Indicator Removal | Defense Evasion | **SARIF + GitHub Security**: preserva evidencia aunque el atacante intente borrar logs |
+| **T1021** | Remote Services | Lateral Movement | **UFW + Wazuh**: detecta movimiento lateral vía SSH/RDP/WinRM tras compromiso inicial |
+
+**Stack de respuesta:** `Wazuh SIEM` (recolección) → `Sigma rules` (detección) → `YARA` (clasificación) → `UFW firewall` (contención) → **DETECT · ANALYZE · RESPOND**
+
 🛡️Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
 
 **Hipótesis de caza basada en este laboratorio:**
