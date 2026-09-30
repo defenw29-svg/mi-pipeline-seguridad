@@ -3,6 +3,8 @@
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
 
 ### 📊 Estado Actual del Despliegue Técnico
+
+
 ![Estado del Pipeline](https://github.com)
 
 ---
