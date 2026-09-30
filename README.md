@@ -64,7 +64,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
   uses: gitleaks/gitleaks-action@v2
   with:
     args: --redact --verbose --no-git --report-format=sarif --report-path=gitleaks.sarif
-
+```
 
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
