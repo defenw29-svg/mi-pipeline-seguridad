@@ -1,0 +1,16 @@
+title: Intento de cuenta valida SSH - T1078
+id: 1a2b3c4d-5678-90ab-cdef-1234567890ab
+status: experimental
+description: Detecta intentos de autenticacion SSH tras compromiso, posible uso de cuentas validas
+logsource:
+  product: linux
+  service: sshd
+detection:
+  selection:
+    EventType: FailedLogin
+    dst_port: 22
+  condition: selection | count() > 5
+level: medium
+tags:
+    - attack.persistence
+    - attack.t1078
