@@ -38,6 +38,8 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 ### 🔍 Nota Técnica: Evolución hacia Threat Hunting (SOC Tier 3)
 
+![MITRE Map](INFOGRAFIA_MITRE_TIER3.jpg)
+
 🛡️Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
 
 **Hipótesis de caza basada en este laboratorio:**
