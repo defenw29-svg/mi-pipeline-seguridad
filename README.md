@@ -1,5 +1,10 @@
 # mi-pipeline-seguridad
 
+[[Security Pipeline v2.1](https://github.[STRIPPED 66 bytes].yml/badge.svg)](https://github.com/defenw29-svg/mi-pipeline-seguridad/actions)
+
+![Banner SOC L1](./banner.png)
+
+
 <img width="2048" height="1152" alt="828311729_2914248222242947_3448804082577344125_n" src="https://github.com/user-attachments/assets/228c1f67-a61d-4808-bd73-e41ac405f8eb" />
 
 
