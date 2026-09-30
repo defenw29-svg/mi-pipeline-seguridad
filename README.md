@@ -5,7 +5,7 @@ My Pipeline Seguridad automátizado
 ![Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![Hardening](https://img.shields.io/badge/HARDENING-CI%2FCD-00C853?style=for-the-badge&logo=linux&logoColor=white)
-![SOC L1](https://img.shields.io/badge/SOC-L1%20REMEDIATION-FF6F00?style=for-the-badge&logo=palantir&logoColor=white)
+[SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
 
 ## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
