@@ -36,9 +36,8 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 ## Resumen del laboratorio actual
 
-**Equipo-azul-laboratorio-sociedad-l1-l2:** Laboratorio de parcheo y endurecimiento para **SOC 1 / SOC 2**.
+**Equipo-azul-laboratorio-sociedad-l1-l2-l3:** Laboratorio de parcheo y endurecimiento para SOC Tier 1 / Tier 2 / Tier 3.
 
 Validación de ciclo de vida de parches en Ubuntu y Windows, deshabilitado de SMBv1 y cierre de puertos (vsftpd/21) con UFW.
 
-**Autor:** Iván Ajenjo Morales | SOC 1 / SOC 2 ITIL SecOps | Licencia MIT
-
+**Autor:** Iván Ajenjo Morales | SOC Tier 1 / Tier 2 / Tier 3 ITIL SecOps | Licencia MIT
