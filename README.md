@@ -114,21 +114,6 @@ fi
 
 > 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II e ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo por completo que el SOC Gate asuma un estado limpio erróneo.
 
-
- 
-## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.4
-
-El diseño del bloque analítico implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a Wazuh.
-
-### 1. Extracción Resiliente de IDs mediante Recursividad JQ Deep Search
-* **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. **Resultado:** `ANALYSIS_ID=""` -> SARIF vacío -> falso 0 fantasma -> bypass del SOC Gate.
-
-```bash
-ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1)
-```
-
-> 💡 **Mecanismo:** El operador `..` de `jq` realiza una búsqueda transversal recursiva en todo el árbol JSON. Localiza `.id` sin importar si la API encapsula la respuesta en `.[0].id`, `.analyses[0].id` o `.data.codeScanning.analyses[0].id`. Es el patrón estándar utilizado en workflows internos de alta disponibilidad.
-
 ### 💻 Pila tecnológica
 
 **Seguridad y Redes**
