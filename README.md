@@ -162,4 +162,5 @@ Validación de ciclo de vida de parches en Ubuntu/Windows, deshabilitado SMBv1 y
 
 **Autor:** Iván Ajenjo Morales | L1/L2 ITIL SecOps | [Orquestación.md](./Orquestación.md) | Licencia MIT
 
+
 **Autor:** Iván Ajenjo Morales | SOC Tier 1 / Tier 2 / Tier 3 ITIL SecOps | Licencia MIT
