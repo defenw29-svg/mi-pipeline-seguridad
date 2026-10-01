@@ -1,4 +1,4 @@
-name: Security Pipeline v2.1 - SOC L1 Remediation
+name: "Security Pipeline v2.1 - SOC L1 Remediation"
 
 on:
   push:
@@ -16,45 +16,78 @@ jobs:
     name: 1. Secret Audit (Gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Fuerza a Gitleaks a escribir el reporte SARIF y mantiene el modo estricto de bloqueo
+          format: sarif
+          report-path: gitleaks-results.sarif
+
+      - name: Upload Gitleaks SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() # Asegura que la evidencia se suba aunque se detecten secretos
+        with:
+          sarif_file: gitleaks-results.sarif
 
   static-analysis:
     name: 2. CodeQL SAST Analysis
     runs-on: ubuntu-latest
-    needs: secret-scan
+    needs: secret-scan # Mantiene el bloqueo si Gitleaks encuentra un secreto expuesto
     strategy:
       fail-fast: false
       matrix:
         language: [ 'javascript-typescript' ]
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
   dependency-scan:
     name: 3. Dependency Audit (Trivy)
     runs-on: ubuntu-latest
     needs: secret-scan
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Run Trivy Scanner
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v1.0.0 # Actualizado a versión estable y segura
         with:
           scan-type: 'fs'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
           ignore-unfixed: true
-      - uses: github/codeql-action/upload-sarif@v3
+          # Eliminamos el exit-code '1' de aquí para permitir que termine de escribir el SARIF de forma limpia
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Enforce Gates (SOC Tier 1/2 Policy)
+        run: |
+          # Este paso técnico analiza el SARIF generado de forma limpia. 
+          # Si contiene hallazgos de vulnerabilidades, rompe el pipeline AQUÍ, cumpliendo la política de 0 alertas.
+          if grep -q '"severity": "error"' trivy-results.sarif || grep -q '"level": "error"' trivy-results.sarif; then
+            echo "[-] SOC Policy Violation: Vulnerabilidades críticas/altas detectadas en dependencias."
+            exit 1
+          fi
