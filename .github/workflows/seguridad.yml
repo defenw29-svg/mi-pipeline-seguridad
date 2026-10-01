@@ -13,11 +13,10 @@ permissions:
 
 jobs:
   secret-scan:
-    name: 1. Secret Audit (Gitleaks)
+    name: 1. Secret Audit (Gitleaks) - T1078
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -25,8 +24,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: false
         with:
+          # Corregido el espacio en '--source .' para evitar fallos de sintaxis del binario
           args: detect --source . --redact --format sarif --report-path gitleaks-results.sarif --no-banner -v
 
       - name: Upload Gitleaks SARIF
@@ -36,7 +35,7 @@ jobs:
           sarif_file: gitleaks-results.sarif
 
   static-analysis:
-    name: 2. CodeQL SAST Analysis
+    name: 2. CodeQL SAST - T1190
     runs-on: ubuntu-latest
     needs: secret-scan
     strategy:
@@ -52,7 +51,7 @@ jobs:
       - uses: github/codeql-action/analyze@v3
 
   dependency-scan:
-    name: 3. Dependency Audit (Trivy)
+    name: 3. Dependency Audit (Trivy) - T1190
     runs-on: ubuntu-latest
     needs: secret-scan
     steps:
@@ -73,17 +72,21 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Enforce Gates (SOC Tier 1/2 Policy)
+      - name: Enforce Gates SOC 0-Alertas
         if: always()
         run: |
+          # Control de seguridad: Si por algún motivo el archivo no se generó o está vacío, no se salta el control
           if [ ! -s trivy-results.sarif ]; then
-            echo "No SARIF generated, failing"
+            echo "::error::SOC Error: El reporte SARIF de Trivy no se ha generado correctamente."
             exit 1
           fi
-          COUNT=$(jq '[.runs[].results[]] | length' trivy-results.sarif)
+          
+          # Se añade el operador '?' a '.results[]?' para prevenir que jq rompa el flujo si el array viene nulo (0 vulnerabilidades)
+          COUNT=$(jq '[.runs[].results[]?] | length' trivy-results.sarif)
+          
           if [ "$COUNT" -gt 0 ]; then
-            echo "[-] SOC Policy Violation: $COUNT vulnerabilidades CRITICAL/HIGH detectadas."
+            echo "::error::SOC Policy Violation: $COUNT vulns CRITICAL/HIGH detectadas en dependencias."
             exit 1
           else
-            echo "[+] No se detectaron vulnerabilidades bloqueantes."
+            echo "[+] SOC Compliance: 0 Vulnerabilidades detectadas. Gate autorizado."
           fi
