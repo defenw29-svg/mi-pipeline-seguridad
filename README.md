@@ -78,21 +78,43 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 **Objetivo:** Pasar de remediación reactiva a caza hipotética asumiendo brecha, validando que el endurecimiento con UFW y gestión de ciclo de vida de parches no dejó artefactos residuales.
 
+## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.4
 
-## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance)
+El diseño del bloque analítico implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a Wazuh.
 
-El diseño del bloque analítico del pipeline implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a la cola de eventos del SIEM (Wazuh).
+### 1. Extracción Resiliente de IDs mediante Recursividad JQ Deep Search
 
-### 1. Extracción Resiliente de IDs de Análisis mediante Recursividad (JQ Deep Search)
-* **El Problema:** El filtrado rígido basado en arrays estáticos (`.[0].id`) se rompe o cortocircuita de forma silenciosa si la API de GitHub introduce metadatos de paginación adicionales o si los payloads son modificados dinámicamente en entornos federados/Enterprise.
-* **La Solución (v3.4):** Se implementa el operador de recursividad profunda de `jq` (`.. | .id? // empty`). Este mecanismo inspecciona transversalmente la estructura del objeto JSON devuelto, garantizando la localización unívoca del identificador del escaneo sin importar el nivel de anidamiento de la respuesta.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. **Resultado:** `ANALYSIS_ID=""` -> SARIF vacío -> falso 0 fantasma -> bypass del SOC Gate.
 
-### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate Pattern)
-* **El Problema:** Las redirecciones de flujo directas sobre el archivo definitivo (`gh api ... > codeql-results.sarif`) generan condiciones de carrera si la conexión HTTP se degrada, dejando el archivo truncado, malformado o vacío. Un validador secuencial laxo interpretaría este estado como "0 vulnerabilidades", autorizando despliegues inseguros.
-* **La Solución (v3.4):** Se aplica el patrón de escritura atómica utilizado en entornos bancarios de alta criticidad:
-  1. Los datos brutos se vuelcan inicialmente en un buffer temporal aislado (`codeql-results.tmp`).
-  2. Se valida la existencia y la integridad estructural de la firma del esquema SARIF (`jq -e '.runs'`).
-  3. Solo si la estructura lógica es 100% íntegra, se realiza un desplazamiento atómico en el sistema de archivos (`mv`). Si el buffer está corrupto, se genera un reporte estructurado alternativo para alertar al SOC de forma transparente sin enmascarar riesgos.
+```bash
+ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1)
+```
+
+> 💡 **Mecanismo:** El operador `..` de `jq` realiza una búsqueda transversal recursiva en todo el árbol JSON. Localiza `.id` sin importar si la API encapsula la respuesta en `.[0].id`, `.analyses[0].id` o `.data.codeScanning.analyses[0].id`. Es el patrón estándar utilizado en workflows internos de alta disponibilidad.
+
+### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate)
+
+- **Problema:** La instrucción `gh api ... > codeql-results.sarif` ejecuta una redirección directa en la shell. Si la conexión de red se degrada a mitad de la descarga, deja un archivo truncado e inválido. Un cortocircuito sutil con fallbacks genéricos de tipo `|| echo '{}'` expone al pipeline a una condición de carrera (*race condition*), donde el SOC Gate lee un archivo corrupto antes del formateo, asumiendo un estado limpio erróneo (falso 0).
+
+```bash
+# 1. Vuelco inicial a buffer temporal aislado
+gh api -H "Accept: application/sarif+json" "repos/\({{ github.repository }}/code-scanning/analyses/\)ANALYSIS_ID" > codeql-results.tmp
+
+# 2. Validación estricta de tamaño (-s) + verificación de firma de esquema SARIF (jq -e '.runs')
+if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
+  # 3. Sustitución atómica (operación indivisible e instantánea del sistema de archivos)
+  mv codeql-results.tmp codeql-results.sarif
+  echo "✅ CodeQL REAL cargado con éxito."
+else
+  # 4. Mitigación: Si está corrupto, se inyecta un reporte estructurado alternativo transparente para el SOC sin enmascarar riesgos.
+  echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
+  rm -f codeql-results.tmp
+fi
+```
+
+> 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II e ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo por completo que el SOC Gate asuma un estado limpio erróneo.
+
+
  
 ## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.4
 
@@ -106,30 +128,6 @@ ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1)
 ```
 
 > 💡 **Mecanismo:** El operador `..` de `jq` realiza una búsqueda transversal recursiva en todo el árbol JSON. Localiza `.id` sin importar si la API encapsula la respuesta en `.[0].id`, `.analyses[0].id` o `.data.codeScanning.analyses[0].id`. Es el patrón estándar utilizado en workflows internos de alta disponibilidad.
-
----
-
-### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate)
-* **Problema:** La instrucción `gh api ... > codeql-results.sarif` ejecuta una redirección directa en la shell. Si la conexión de red se degrada a mitad de la descarga, deja un archivo truncado e inválido. Un cortocircuito sutil con fallbacks genéricos de tipo `|| echo '{}'` expone al pipeline a una condición de carrera (*race condition*), donde el SOC Gate lee un archivo corrupto antes del formateo, asumiendo un estado limpio erróneo (falso 0).
-
-```bash
-# 1. Vuelco inicial a buffer temporal aislado
-gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp 2>/dev/null || true
-
-# 2. Validación estricta de tamaño (-s) + verificación de firma de esquema SARIF (jq -e '.runs')
-if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
-  # 3. Sustitución atómica (operación indivisible e instantánea del sistema de archivos)
-  mv codeql-results.tmp codeql-results.sarif
-  echo "✅ CodeQL REAL cargado con éxito."
-else
-  # 4. Mitigación: Si está corrupto, se inyecta un reporte estructurado alternativo transparente para el SOC
-  echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
-  rm -f codeql-results.tmp
-fi
-
-```
-
-> 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II** e **ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo que el motor de validación se ciegue ante fallos de infraestructura.
 
 ## Resumen del laboratorio actual
 
