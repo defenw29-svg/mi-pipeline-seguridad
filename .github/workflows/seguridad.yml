@@ -38,7 +38,6 @@ jobs:
         with:
           category: "/language:multi"
 
-      # --- DESCARGA DEFENSIVA CON FILTRADO ROBUSTO POR RUTA ---
       - name: Download REAL CodeQL SARIF via GH CLI
         if: always()
         env:
@@ -48,30 +47,21 @@ jobs:
           sleep 15
           REF_PATH="${{ github.ref }}"
           [ "${{ github.event_name }}" = "pull_request" ] && REF_PATH="refs/heads/${{ github.head_ref }}"
-          
           if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
             echo "::warning::PR Fork - Omitiendo CodeQL, usando Gitleaks+Trivy"
             echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
             exit 0
           fi
-          
           ANALYSIS_OUT=$(gh api "repos/${{ github.repository }}/code-scanning/analyses?tool_name=CodeQL&ref=$REF_PATH&per_page=1" 2>&1) || true
-          
           if echo "$ANALYSIS_OUT" | grep -qi "403\|401\|Resource not accessible"; then
             echo '{"version":"2.1.0","runs":[{"results":[{"ruleId":"infra-403","level":"error"}]}]}' > codeql-results.sarif
             exit 0
           fi
-          
-          # FIX CRÍTICO: Búsqueda profunda de ID en cualquier nivel del JSON usando el operador de recursividad (..)
           ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1 2>/dev/null || echo "")
-          
           if [ -z "$ANALYSIS_ID" ] || [ "$ANALYSIS_ID" = "null" ]; then
             echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
           else
-            # Descarga e instanciación atómica del archivo físico
             gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp 2>/dev/null || true
-            
-            # FIX CRÍTICO: Validación semántica y sobrescritura segura mediante buffer temporal
             if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
               mv codeql-results.tmp codeql-results.sarif
               echo "✅ CodeQL REAL: $(jq -r '[.runs[]?.results[]? // empty] | length' codeql-results.sarif) vulns"
@@ -134,17 +124,14 @@ jobs:
         run: |
           cnt_vuln() { f=$1; [ -f "$f" ] || { echo 0; return; }; jq '[if .runs then .runs[]?.results[]? else empty end | select(.ruleId!="infra-403")] | length' "$f" 2>/dev/null | tr -d '\n\r ' || echo 0; }
           cnt_infra() { f=$1; [ -f "$f" ] || { echo 0; return; }; jq '[if .runs then .runs[]?.results[]? else empty end | select(.ruleId=="infra-403")] | length' "$f" 2>/dev/null | tr -d '\n\r ' || echo 0; }
-          
           GITLEAKS_COUNT=$(cnt_vuln gitleaks-results.sarif)
           TRIVY_COUNT=$(cnt_vuln trivy-results.sarif)
           CODEQL_COUNT=$(cnt_vuln codeql-results.sarif)
           INFRA_COUNT=$(($(cnt_infra gitleaks-results.sarif) + $(cnt_infra trivy-results.sarif) + $(cnt_infra codeql-results.sarif)))
-          
           GITLEAKS_COUNT=$(echo "$GITLEAKS_COUNT" | grep -Eo '[0-9]+' | head -1); GITLEAKS_COUNT=${GITLEAKS_COUNT:-0}
           TRIVY_COUNT=$(echo "$TRIVY_COUNT" | grep -Eo '[0-9]+' | head -1); TRIVY_COUNT=${TRIVY_COUNT:-0}
           CODEQL_COUNT=$(echo "$CODEQL_COUNT" | grep -Eo '[0-9]+' | head -1); CODEQL_COUNT=${CODEQL_COUNT:-0}
           TOTAL=$((GITLEAKS_COUNT + TRIVY_COUNT + CODEQL_COUNT))
-          
           echo "SOC Gate: Gitleaks T1078=$GITLEAKS_COUNT Trivy T1190=$TRIVY_COUNT CodeQL T1059=$CODEQL_COUNT Total=$TOTAL Infra=$INFRA_COUNT"
           if [ "$INFRA_COUNT" -gt 0 ]; then echo "::error::SOC Infra Failure 403"; exit 1; fi
           if [ "$TOTAL" -gt 0 ]; then echo "::error::SOC Policy Violation $TOTAL vulns"; exit 1; fi
