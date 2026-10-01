@@ -2,9 +2,9 @@ name: "Security Pipeline v2.2 - Full SOC Integration & Hardening"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "principal" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "principal" ]
 
 permissions:
   contents: read
@@ -21,9 +21,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ==========================================
-      # FASE 1: AUDITORÍA DE SECRETOS (GITLEAKS)
-      # ==========================================
       - name: Run Gitleaks - T1078
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: true
@@ -39,9 +36,6 @@ jobs:
         with:
           sarif_file: gitleaks-results.sarif
 
-      # ==========================================
-      # FASE 2: ANÁLISIS DE DEPENDENCIAS (TRIVY)
-      # ==========================================
       - name: Run Trivy Scanner - T1190
         uses: aquasecurity/trivy-action@0.33.1
         continue-on-error: true
@@ -59,129 +53,26 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # ==========================================
-      # FASE 3: EXTRACCIÓN Y TELEMETRÍA WAZUH (CORREGIDO)
-      # ==========================================
       - name: Generate Wazuh SIEM JSON Events
         if: always()
         run: |
-          echo "[+] Parsing SARIF telemetry for Wazuh integration..."
-          
-          # Extraer secretos detectados por Gitleaks (Corregido array .locations[0])
+          > wazuh-alerts.json
           if [ -s gitleaks-results.sarif ]; then
-            jq -c '.runs[].results[]? | {
-              integration: "soc_pipeline_scan",
-              scanner: "gitleaks",
-              rule_id: .ruleId,
-              severity: "critical",
-              message: .message.text,
-              file: .locations[0].physicalLocation.artifactLocation.uri
-            }' gitleaks-results.sarif >> wazuh-alerts.json || true
+            jq -c '.runs[].results[]? | {integration:"soc_pipeline_scan",scanner:"gitleaks",mitre:"T1078",rule_id:.ruleId,severity:"critical",message:.message.text,file:.locations[0].physicalLocation.artifactLocation.uri}' gitleaks-results.sarif >> wazuh-alerts.json || true
           fi
-          
-          # Extraer vulnerabilidades detectadas por Trivy (Corregido array .locations[0])
           if [ -s trivy-results.sarif ]; then
-            jq -c '.runs[].results[]? | {
-              integration: "soc_pipeline_scan",
-              scanner: "trivy",
-              rule_id: .ruleId,
-              severity: .level,
-              message: .message.text,
-              file: .locations[0].physicalLocation.artifactLocation.uri
-            }' trivy-results.sarif >> wazuh-alerts.json || true
+            jq -c '.runs[].results[]? | {integration:"soc_pipeline_scan",scanner:"trivy",mitre:"T1190",rule_id:.ruleId,severity:.level,message:.message.text,file:.locations[0].physicalLocation.artifactLocation.uri}' trivy-results.sarif >> wazuh-alerts.json || true
           fi
-          
-          if [ -f wazuh-alerts.json ]; then
-            echo "[+] Wazuh telemetría generada con éxito (wazuh-alerts.json):"
-            cat wazuh-alerts.json
-          else
-            echo "[+] No se encontraron eventos de alerta para exportar al SIEM."
-          fi
+          cat wazuh-alerts.json || echo "Repo limpio - 0 alertas"
 
-      # ==========================================
-      # FASE 4: SCRIPT AUTOMATIZADO DE HARDENING UBUNTU
-      # ==========================================
-      - name: Generate Hardening Script - T1059
-        if: always()
-        run: |
-          echo "[+] Creando script automatizado hardening-ubuntu-soc.sh..."
-          cat << 'EOF' > hardening-ubuntu-soc.sh
-          #!/bin/bash
-          # 🛡️ Script de Hardening y Prevención Continua (SOC L1/L2/L3)
-          # Autor: Iván Ajenjo Morales | Laboratorio de Endurecimiento
-          
-          set -e
-          echo "=========================================================="
-          echo " Ejecutando Fortificación del Sistema Ubuntu - Matriz SOC"
-          echo "=========================================================="
-          
-          # 1. Cierre del servicio vsftpd/21 y configuración estricta de UFW
-          echo "[+] Fortificando red y aplicando políticas UFW (Mitigación T1021/T1190)..."
-          if systemctl is-active --quiet vsftpd; then
-              echo "[-] Detectado servicio vsftpd activo. Procediendo a deshabilitación..."
-              sudo systemctl stop vsftpd
-              sudo systemctl disable vsftpd
-          fi
-          sudo ufw default deny incoming
-          sudo ufw default allow outgoing
-          sudo ufw deny 21/tcp
-          sudo ufw enable --force
-          
-          # 2. Deshabilitar protocolo obsoleto SMBv1
-          echo "[+] Deshabilitando SMBv1 en configuraciones del sistema..."
-          if [ -f /etc/samba/smb.conf ]; then
-              if ! grep -q "server min protocol" /etc/samba/smb.conf; then
-                  sudo sed -i '/\[global\]/a \   server min protocol = SMB2\n   client min protocol = SMB2' /etc/samba/smb.conf
-                  echo "[+] Restricción SMBv1 inyectada en smb.conf."
-                  sudo systemctl restart smbd || true
-              fi
-          fi
-          
-          # 3. Automatización de Ciclo de Vida de Parches (unattended-upgrades)
-          echo "[+] Configurando actualizaciones desatendidas (Ciclo de Parches)..."
-          sudo apt-get update -y
-          sudo apt-get install -y unattended-upgrades apt-listchanges
-          sudo dpkg-reconfigure -f noninteractive unattended-upgrades
-          echo '[+] Configuración verificada de parches de seguridad automatizados.'
-          
-          # 4. Auditoría proactiva y Caza de Amenazas (Threat Hunting T1059)
-          echo "[+] Iniciando auditoría preventiva sobre directorios /tmp y crontab..."
-          find /tmp /var/tmp /dev/shm -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) 2>/dev/null | while read -r line; do
-              echo "::warning::[HUNTING T1059] Script potencialmente sospechoso localizado en ruta temporal: $line"
-          done
-          
-          echo "=========================================================="
-          echo " Hardening completado con éxito. Sistema blindado bajo SecOps."
-          echo "=========================================================="
-          EOF
-          chmod +x hardening-ubuntu-soc.sh
-          echo "[+] Script generado correctamente."
-
-      # ==========================================
-      # FASE 5: CONTROL DE CUMPLIMIENTO ZERO TRUST
-      # ==========================================
       - name: Enforce Gates SOC 0-Alertas
         if: always()
         run: |
-          if [ ! -f gitleaks-results.sarif ] || [ ! -f trivy-results.sarif ]; then
-            echo "::error::SOC Error: Faltan archivos de telemetría esenciales para validar el cumplimiento."
-            exit 1
-          fi
-          
           GITLEAKS_COUNT=$(jq '[.runs[].results[]?] | length' gitleaks-results.sarif)
           TRIVY_COUNT=$(jq '[.runs[].results[]?] | length' trivy-results.sarif)
-          TOTAL_ALERTS=$((GITLEAKS_COUNT + TRIVY_COUNT))
-          
-          echo "=========================================================="
-          echo " EVALUACIÓN DE POLÍTICAS DE SEGURIDAD DEL SOC"
-          echo "=========================================================="
-          echo "[*] Hallazgos detectados por Gitleaks (T1078): $GITLEAKS_COUNT"
-          echo "[*] Hallazgos detectados por Trivy (T1190): $TRIVY_COUNT"
-          echo "=========================================================="
-          
-          if [ "$TOTAL_ALERTS" -gt 0 ]; then
-            echo "::error::SOC Policy Violation: Se ha denegado el paso debido a la presencia de $TOTAL_ALERTS vulnerabilidades y/o secretos."
+          TOTAL=$((GITLEAKS_COUNT + TRIVY_COUNT))
+          echo "Gitleaks: $GITLEAKS_COUNT | Trivy: $TRIVY_COUNT"
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "::error::SOC Policy Violation: $TOTAL hallazgos"
             exit 1
-          else
-            echo "[+] SOC Compliance Pass: Todo verificado. Código e infraestructura limpios de alertas críticas."
           fi
