@@ -1,4 +1,4 @@
-name: "Security Pipeline v3.0 - Full SOC Integration (Enterprise Hardened Final)"
+name: "Security Pipeline v3.1 - Full SOC Integration (Enterprise Hardened Final)"
 
 on:
   push:
@@ -24,10 +24,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Initialize CodeQL (SAST) - T1059/T1190
+      - name: Initialize CodeQL (SAST)
         uses: github/codeql-action/init@v3
         with:
-          languages: javascript, python # cambia según tu repo
+          languages: javascript, python
           queries: security-and-quality
 
       - name: Autobuild
@@ -56,7 +56,7 @@ jobs:
 
           # 1. Anti-Bypass Fork: en PR de fork GitHub bloquea code-scanning
           if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
-            echo "::warning::PR desde Fork detectado - Code Scanning API no accesible por política de seguridad de GitHub. Se omite CodeQL y se valida Gitleaks+Trivy (comportamiento enterprise)"
+            echo "::warning::PR desde Fork detectado - Code Scanning API no accesible por política de seguridad de GitHub. Se omite CodeQL y se valida Gitleaks+Trivy"
             echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL-Fork-Skipped"}},"results":[]}]}' > codeql-results.sarif
             exit 0
           fi
@@ -67,7 +67,7 @@ jobs:
           GH_EXIT=$?
           set -e
 
-          # 3. Manejo de 403/401 sin cegar el SOC Gate (no fallback silencioso a 0)
+          # 3. Manejo de 403/401 sin cegar el SOC Gate
           if [ $GH_EXIT -ne 0 ]; then
             echo "gh api falló: $ANALYSIS_ID"
             if echo "$ANALYSIS_ID" | grep -qi "403\|401\|Must have admin\|Resource not accessible"; then
@@ -122,6 +122,7 @@ jobs:
       - name: Generate SBOM + Wazuh SIEM JSON
         if: always()
         run: |
+          # Instalación limpia basada en el script oficial proporcionado
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           trivy fs --format cyclonedx --output sbom.json .
           
@@ -135,7 +136,7 @@ jobs:
                 --arg event "${{ github.event_name }}" \
                 --arg ref "${{ github.ref }}" \
                 '
-                .runs[].results[]? | select(. != null) | 
+                if .runs then .runs[].results[]? else empty end | select(. != null) | 
                 {
                   timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
                   integration: "soc_pipeline_scan",
@@ -148,7 +149,7 @@ jobs:
                   rule_id: (.ruleId // "unknown"),
                   severity: (.level // "high"),
                   message: (.message.text // "No description"),
-                  file: (.locations[0].physicalLocation.artifactLocation.uri // "unknown")
+                  file: ((.locations[0].physicalLocation.artifactLocation.uri) // "unknown")
                 }
               ' "$f" >> wazuh-alerts.json 2>/dev/null || true
             fi
@@ -166,19 +167,20 @@ jobs:
             sbom.json
             *results.sarif
 
+      # --- GATE DE SEGURIDAD DEFENSIVO COMPLETADO Y CORREGIDO ---
       - name: Enforce Gates SOC 0-Alertas (100% REAL + Anti-Bypass)
         if: always()
         run: |
-          GITLEAKS_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
-          TRIVY_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
-          CODEQL_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          # Parseo defensivo condicional: valida la existencia de la estructura .runs antes de contar elementos
+          GITLEAKS_COUNT=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId != "infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
+          TRIVY_COUNT=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId != "infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
+          CODEQL_COUNT=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId != "infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
           
-          # Conteo de errores de infraestructura aislado por archivo para evitar fallos de lectura múltiple en jq
-          INFRA_GITLEAKS=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
-          INFRA_TRIVY=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
-          INFRA_CODEQL=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          INFRA_GITLEAKS=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId == "infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
+          INFRA_TRIVY=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId == "infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
+          INFRA_CODEQL=$(jq '[if .runs then .runs[].results[]? else empty end | select(.ruleId == "infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          
           INFRA_ERROR=$((INFRA_GITLEAKS + INFRA_TRIVY + INFRA_CODEQL))
-          
           TOTAL=$((GITLEAKS_COUNT + TRIVY_COUNT + CODEQL_COUNT))
           
           echo "📊 MÉTRICAS FINALES DEL SOC GATE (Enterprise Hardened):"
@@ -189,12 +191,13 @@ jobs:
           echo "-> TOTAL DE AMENAZAS ACTIVAS: $TOTAL"
           
           if [ "$INFRA_ERROR" -gt 0 ]; then
-            echo "::error::SOC Infrastructure Failure: El pipeline ha sido bloqueado preventivamente debido a un fallo de permisos en la API (403/401)."
+            echo "::error::SOC Infrastructure Failure: El pipeline ha sido bloqueado de forma preventiva debido a un fallo de permisos o autenticación en las APIs (403/401)."
             exit 1
           fi
           
           if [ "$TOTAL" -gt 0 ]; then
-            echo "::error::SOC Policy Violation: Despliegue rechazado. Se detectaron $TOTAL vulnerabilidades vivas en el código."
+            echo "::error::SOC Policy Violation: Despliegue denegado de forma automática por política estricta de cero alertas. Registros consolidados en los artefactos."
             exit 1
           fi
-          echo "✅ SOC Gate aprobado: Cumplimiento normativo del 100% verificado sin brechas de infraestructura."
+          
+          echo "✅ SOC Gate aprobado: Cumplimiento normativo verificado con éxito sin incidencias."
