@@ -67,8 +67,10 @@ else
   echo '{}' > sbom.json
 fi
 > wazuh-alerts.json
+# v3.4.1 FIX: || true DENTRO del bucle para que set -e no aborte si jq falla con SARIF corrupto
+# Linea 65 - Discrepancia corregida: blindaje por comando, no por bloque
 for f in gitleaks-results.sarif trivy-results.sarif codeql-results.sarif; do
-  [ -s "$f" ] && jq -c --arg s "$f" --arg c "$(git rev-parse HEAD 2>/dev/null || echo local)" --arg a "$(whoami)" '.runs[]?.results[]? | select(.!=null) | {integration:"soc_pipeline_scan",scanner:$s,commit:$c,actor:$a,mitre:(if $s|contains("gitleaks") then "T1078" elif $s|contains("trivy") then "T1190" else "T1059" end),rule_id:(.ruleId//"unknown")}' "$f" >> wazuh-alerts.json 2>/dev/null || true
+  { [ -s "$f" ] && jq -c --arg s "$f" --arg c "$(git rev-parse HEAD 2>/dev/null || echo local)" --arg a "$(whoami)" '.runs[]?.results[]? | select(.!=null) | {integration:"soc_pipeline_scan",scanner:$s,commit:$c,actor:$a,mitre:(if $s|contains("gitleaks") then "T1078" elif $s|contains("trivy") then "T1190" else "T1059" end),rule_id:(.ruleId//"unknown")}' "$f" >> wazuh-alerts.json 2>/dev/null || true; } || true
 done
 
 # 6. Gate identico a v3.4 - FIX set -e
