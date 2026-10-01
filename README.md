@@ -9,9 +9,6 @@
 
 ## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
-[![Procedimiento SOC](https://github.com)](https://github.com)
-
-
 ![CI/CD Security Pipeline - SOC Tier 1/2/3](INFOGRAFIA_PIPELINE_SOC.jpg)
 
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
