@@ -1,6 +1,3 @@
-
-![CI](https://github.com/defenw29-svg/mi-pipeline-seguridad/actions/workflows/tu-workflow.yml/badge.svg)
-
 <img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/166c31db-b964-42f9-a75a-21a7b6b24d36" />
 
 ![SOC L1 - Ivan Ajenjo Morales](./Banner.png) 
