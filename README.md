@@ -78,6 +78,22 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 **Objetivo:** Pasar de remediación reactiva a caza hipotética asumiendo brecha, validando que el endurecimiento con UFW y gestión de ciclo de vida de parches no dejó artefactos residuales.
 
+
+## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance)
+
+El diseño del bloque analítico del pipeline implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a la cola de eventos del SIEM (Wazuh).
+
+### 1. Extracción Resiliente de IDs de Análisis mediante Recursividad (JQ Deep Search)
+* **El Problema:** El filtrado rígido basado en arrays estáticos (`.[0].id`) se rompe o cortocircuita de forma silenciosa si la API de GitHub introduce metadatos de paginación adicionales o si los payloads son modificados dinámicamente en entornos federados/Enterprise.
+* **La Solución (v3.4):** Se implementa el operador de recursividad profunda de `jq` (`.. | .id? // empty`). Este mecanismo inspecciona transversalmente la estructura del objeto JSON devuelto, garantizando la localización unívoca del identificador del escaneo sin importar el nivel de anidamiento de la respuesta.
+
+### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate Pattern)
+* **El Problema:** Las redirecciones de flujo directas sobre el archivo definitivo (`gh api ... > codeql-results.sarif`) generan condiciones de carrera si la conexión HTTP se degrada, dejando el archivo truncado, malformado o vacío. Un validador secuencial laxo interpretaría este estado como "0 vulnerabilidades", autorizando despliegues inseguros.
+* **La Solución (v3.4):** Se aplica el patrón de escritura atómica utilizado en entornos bancarios de alta criticidad:
+  1. Los datos brutos se vuelcan inicialmente en un buffer temporal aislado (`codeql-results.tmp`).
+  2. Se valida la existencia y la integridad estructural de la firma del esquema SARIF (`jq -e '.runs'`).
+  3. Solo si la estructura lógica es 100% íntegra, se realiza un desplazamiento atómico en el sistema de archivos (`mv`). Si el buffer está corrupto, se genera un reporte estructurado alternativo para alertar al SOC de forma transparente sin enmascarar riesgos.
+
 ## Resumen del laboratorio actual
 
 **Equipo-azul-laboratorio-sociedad-l1-l2-l3:** Laboratorio de parcheo y endurecimiento para SOC Tier 1 / Tier 2 / Tier 3.
