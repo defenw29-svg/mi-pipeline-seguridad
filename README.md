@@ -114,7 +114,7 @@ ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1)
 
 ```bash
 # 1. Vuelco inicial a buffer temporal aislado
-gh api -H "Accept: application/sarif+json" "repos/\({{ github.repository }}/code-scanning/analyses/\)ANALYSIS_ID" > codeql-results.tmp 2>/dev/null || true
+gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp 2>/dev/null || true
 
 # 2. Validación estricta de tamaño (-s) + verificación de firma de esquema SARIF (jq -e '.runs')
 if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
@@ -126,6 +126,7 @@ else
   echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
   rm -f codeql-results.tmp
 fi
+
 ```
 
 > 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II** e **ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo que el motor de validación se ciegue ante fallos de infraestructura.
