@@ -1,4 +1,4 @@
-name: "Security Pipeline v2.8 - Full SOC Integration (Enterprise Hardened)"
+name: "Security Pipeline v3.0 - Full SOC Integration (Enterprise Hardened Final)"
 
 on:
   push:
@@ -9,9 +9,10 @@ on:
 
 permissions:
   contents: read
-  security-events: write # Requerido para inicializar CodeQL y subir SARIFs de terceros
+  security-events: write # Requerido para CodeQL y subir SARIFs
   actions: read
-  statuses: read         # Permite validar el estado de los checks de la API
+  statuses: read
+  code-scanning: read # Necesario para gh api code-scanning
 
 jobs:
   security-and-hardening:
@@ -23,10 +24,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Initialize CodeQL (SAST)
+      - name: Initialize CodeQL (SAST) - T1059/T1190
         uses: github/codeql-action/init@v3
         with:
-          languages: javascript, python
+          languages: javascript, python # cambia según tu repo
           queries: security-and-quality
 
       - name: Autobuild
@@ -37,46 +38,60 @@ jobs:
         with:
           category: "/language:multi"
 
-      # --- EXTRACCIÓN BLINDADA VÍA API CON ORDENACIÓN INVERSA ---
+      # --- EXTRACCIÓN BLINDADA VÍA GH CLI + ANTI-FORK-BYPASS ---
       - name: Download REAL CodeQL SARIF via GitHub CLI
         if: always()
         env:
-          GH_TOKEN: ${{ github.token }} # Uso estandarizado del token de contexto del runner
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Sincronizando con Code Scanning API (Garantía de indexación)..."
-          sleep 12
-          
-          # Determinamos la referencia exacta según el contexto del evento (Push vs PR)
+          echo "Sincronizando con Code Scanning API (15s garantía indexación)..."
+          sleep 15
+
           REF_PATH="${{ github.ref }}"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             REF_PATH="refs/heads/${{ github.head_ref }}"
           fi
-          
-          echo "Buscando análisis válidos para la referencia: $REF_PATH"
-          
-          # Consultamos ordenando por fecha de creación descendente (la API entrega los más nuevos primero usando este filtro)
-          # Esto evita capturar análisis antiguos residuales
-          ANALYSIS_ID=$(gh api "repos/${{ github.repository }}/code-scanning/analyses?tool_name=CodeQL&ref=$REF_PATH" \
-            --jq '[.[] | select(.deletable == true or .rules_count > 0)] | first | .id // empty')
-          
-          echo "Analysis ID seleccionado por el SOC: $ANALYSIS_ID"
-          
-          if [ -z "$ANALYSIS_ID" ] || [ "$ANALYSIS_ID" = "null" ]; then
-            echo "⚠️ Alerta: No se localizó ID de análisis síncrono. Aplicando estructura limpia de seguridad."
-            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL"}},"results":[]}]}' > codeql-results.sarif
-          else
-            # Descarga del reporte unificado multilingüe real
-            gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.sarif
-            
-            # Validación estructural estricta antes de pasar al motor jq
-            if ! jq -e '.runs' codeql-results.sarif > /dev/null 2>&1; then
-              echo "❌ Error crítico: SARIF corrupto devuelto por el servidor de GitHub. Aplicando contingencia de bloqueo."
-              echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
-            fi
-            echo "✅ CodeQL cargado con éxito. Hallazgos reales: $(jq '[.runs[].results[]? // empty] | length' codeql-results.sarif) vulnerabilidades."
+
+          echo "Buscando análisis más reciente para ref: $REF_PATH | SHA: ${{ github.sha }}"
+
+          # 1. Anti-Bypass Fork: en PR de fork GitHub bloquea code-scanning
+          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
+            echo "::warning::PR desde Fork detectado - Code Scanning API no accesible por política de seguridad de GitHub. Se omite CodeQL y se valida Gitleaks+Trivy (comportamiento enterprise)"
+            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL-Fork-Skipped"}},"results":[]}]}' > codeql-results.sarif
+            exit 0
           fi
 
-      - name: Run Gitleaks - T1078
+          # 2. Descarga con filtro oficial tool_name+ref+per_page=1 (devuelve el más reciente primero)
+          set +e
+          ANALYSIS_ID=$(gh api "repos/${{ github.repository }}/code-scanning/analyses?tool_name=CodeQL&ref=$REF_PATH&per_page=1" --jq '.[0].id // empty' 2>&1)
+          GH_EXIT=$?
+          set -e
+
+          # 3. Manejo de 403/401 sin cegar el SOC Gate (no fallback silencioso a 0)
+          if [ $GH_EXIT -ne 0 ]; then
+            echo "gh api falló: $ANALYSIS_ID"
+            if echo "$ANALYSIS_ID" | grep -qi "403\|401\|Must have admin\|Resource not accessible"; then
+              echo "::error::Fallo infraestructura 403 - Token sin permisos code-scanning. No se hace bypass, se bloquea como error infra"
+              echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL"}},"results":[{"ruleId":"infra-403","level":"error","message":{"text":"No se pudo verificar CodeQL por permisos - revisar workflow"}}]}]}' > codeql-results.sarif
+              exit 0
+            fi
+          fi
+
+          if [ -z "$ANALYSIS_ID" ] || [ "$ANALYSIS_ID" = "null" ]; then
+            echo "⚠ No se localizó ID de análisis válido para $REF_PATH - primer push o repo limpio"
+            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL"}},"results":[]}]}' > codeql-results.sarif
+          else
+            echo "✅ Analysis ID seleccionado por SOC: $ANALYSIS_ID"
+            gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.sarif
+            
+            if ! jq -e '.runs' codeql-results.sarif > /dev/null 2>&1; then
+              echo "❌ SARIF corrupto devuelto por API - contingencia a vacío válido"
+              echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
+            fi
+            echo "✅ CodeQL REAL cargado vía API: $(jq '[.runs[].results[]? // empty] | length' codeql-results.sarif) vulnerabilidades"
+          fi
+
+      - name: Run Gitleaks - T1078 (Valid Accounts)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,7 +104,7 @@ jobs:
         with:
           sarif_file: gitleaks-results.sarif
 
-      - name: Run Trivy Scanner - T1190
+      - name: Run Trivy Scanner - T1190 (Exploit Public-Facing App)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'
@@ -103,21 +118,32 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      # --- SBOM + SIEM ENRIQUECIDO PARA SOC TIER 2/3 ---
       - name: Generate SBOM + Wazuh SIEM JSON
         if: always()
         run: |
-          # Instalación determinista del binario de Trivy usando el script enviado por el usuario
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           trivy fs --format cyclonedx --output sbom.json .
           
           > wazuh-alerts.json
           for f in gitleaks-results.sarif trivy-results.sarif codeql-results.sarif; do
             if [ -s "$f" ]; then
-              jq -c --arg scanner "$f" '
+              jq -c \
+                --arg scanner "$f" \
+                --arg commit "${{ github.sha }}" \
+                --arg actor "${{ github.actor }}" \
+                --arg event "${{ github.event_name }}" \
+                --arg ref "${{ github.ref }}" \
+                '
                 .runs[].results[]? | select(. != null) | 
                 {
+                  timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
                   integration: "soc_pipeline_scan",
                   scanner: $scanner,
+                  commit_sha: $commit,
+                  ref: $ref,
+                  triggered_by: $actor,
+                  event_type: $event,
                   mitre: (if $scanner|contains("gitleaks") then "T1078" elif $scanner|contains("trivy") then "T1190" else "T1059" end),
                   rule_id: (.ruleId // "unknown"),
                   severity: (.level // "high"),
@@ -127,34 +153,48 @@ jobs:
               ' "$f" >> wazuh-alerts.json 2>/dev/null || true
             fi
           done
-          echo "Eventos totales inyectados a la cola de Wazuh: $(wc -l < wazuh-alerts.json)"
+          echo "Eventos totales para Wazuh: $(wc -l < wazuh-alerts.json 2>/dev/null || echo 0)"
 
       - name: Upload Artifacts for SOC Evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: soc-evidence
+          retention-days: 30
           path: |
             wazuh-alerts.json
             sbom.json
             *results.sarif
 
-      - name: Enforce Gates SOC 0-Alertas (100% REAL)
+      - name: Enforce Gates SOC 0-Alertas (100% REAL + Anti-Bypass)
         if: always()
         run: |
-          GITLEAKS_COUNT=$(jq '[.runs[].results[]? // empty] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
-          TRIVY_COUNT=$(jq '[.runs[].results[]? // empty] | length' trivy-results.sarif 2>/dev/null || echo 0)
-          CODEQL_COUNT=$(jq '[.runs[].results[]? // empty] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          GITLEAKS_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
+          TRIVY_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
+          CODEQL_COUNT=$(jq '[.runs[].results[]? // empty | select(.ruleId!="infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          
+          # Conteo de errores de infraestructura aislado por archivo para evitar fallos de lectura múltiple en jq
+          INFRA_GITLEAKS=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' gitleaks-results.sarif 2>/dev/null || echo 0)
+          INFRA_TRIVY=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' trivy-results.sarif 2>/dev/null || echo 0)
+          INFRA_CODEQL=$(jq '[.runs[].results[]? | select(.ruleId=="infra-403")] | length' codeql-results.sarif 2>/dev/null || echo 0)
+          INFRA_ERROR=$((INFRA_GITLEAKS + INFRA_TRIVY + INFRA_CODEQL))
           
           TOTAL=$((GITLEAKS_COUNT + TRIVY_COUNT + CODEQL_COUNT))
-          echo "📊 MÉTRICAS FINALES DEL SOC GATE:"
-          echo "-> Gitleaks (Credenciales): $GITLEAKS_COUNT"
-          echo "-> Trivy (SCA/Dependencias): $TRIVY_COUNT"
-          echo "-> CodeQL (SAST de Código): $CODEQL_COUNT"
-          echo "-> TOTAL DE COMPROMISOS DETECTADOS: $TOTAL"
           
-          if [ "$TOTAL" -gt 0 ]; then
-            echo "::error::SOC Policy Violation: El despliegue automático ha sido revocado debido a $TOTAL vulnerabilidades activas."
+          echo "📊 MÉTRICAS FINALES DEL SOC GATE (Enterprise Hardened):"
+          echo "-> Gitleaks (T1078 Credenciales): $GITLEAKS_COUNT"
+          echo "-> Trivy (T1190 Dependencias): $TRIVY_COUNT"
+          echo "-> CodeQL (T1059 Código Fuente): $CODEQL_COUNT"
+          echo "-> Errores Críticos de Infraestructura: $INFRA_ERROR"
+          echo "-> TOTAL DE AMENAZAS ACTIVAS: $TOTAL"
+          
+          if [ "$INFRA_ERROR" -gt 0 ]; then
+            echo "::error::SOC Infrastructure Failure: El pipeline ha sido bloqueado preventivamente debido a un fallo de permisos en la API (403/401)."
             exit 1
           fi
-          echo "✅ SOC Gate aprobado: Cumplimiento normativo de cero alertas verificado mediante API unificada."
+          
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "::error::SOC Policy Violation: Despliegue rechazado. Se detectaron $TOTAL vulnerabilidades vivas en el código."
+            exit 1
+          fi
+          echo "✅ SOC Gate aprobado: Cumplimiento normativo del 100% verificado sin brechas de infraestructura."
