@@ -145,5 +145,44 @@ fi
 
 Validación de ciclo de vida de parches en Ubuntu/Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ Deep Search .. | .id? // empty`. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
+### 3. 🛡 Endurecimiento Anti-Bypass y Filosofía Fail-Closed
+
+> **Problema:** Un atacante o un dev puede evadir los controles con `git commit --no-verify`, modificando `.github/workflows/` o provocando un fallo de red para forzar un estado limpio erróneo (falso 0).
+
+#### A. Protección contra Bypass Local (T1078)
+- **Problema local:** Husky o cualquier git hook se ejecuta en local, `git commit -n` salta la validación.
+- **Solución remota:** **GitHub Push Protection** a nivel de org/repo.
+- **Refuerzo (Failsafe):** Gitleaks como `required status check` en Actions.
+
+#### B. Protección del Pipeline (T1553)
+- **Pinning por SHA:** Reemplazar `uses: actions/checkout@v4` por hash inmutable.
+- **Branch Protection Rule** que exija aprobación obligatoria de CODEOWNERS.
+- **Auditoría Estática:** **zizmor** / **actionlint** en PRs para detectar `GITHUB_TOKEN` con permisos excesivos o inyección en `run:`.
+
+#### C. Filosofía Fail-Closed en Red (Anti Falso Limpio)
+- **Problema:** Si un comando de red falla en un pipe o Trivy/CodeQL no baja la DB, puede retornar exit `0` con "0 vulnerabilidades".
+- **Solución atómica:** Patrón `tmp -> validate -> mv`. Se escribe en temporal, se valida con `jq -e '.runs'` (SARIF) / `'.Results'` (Trivy) y solo si es válido se mueve atómicamente.
+- **Refuerzo:** `set -euo pipefail` en todo Bash. Si cae la red, el pipeline falla en cerrado y bloquea el deploy.
+
+**Script de referencia Fail-Closed:**
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+TMP=$(mktemp /tmp/trivy-XXXXXX.json)
+FINAL="./security/trivy-report.json"
+trap 'rm -f "$TMP"' EXIT
+trivy image --cache-dir /var/cache/trivy --skip-db-update --format json --output "$TMP" my-app:latest
+jq -e '.Results | length > 0' "$TMP" > /dev/null
+mkdir -p "$(dirname "$FINAL")"
+mv "$TMP" "$FINAL"
+
+```
+#### 📊 Matriz de Trazabilidad de Garantía SOC (CC6.1 / A.8.26)
+
+| Vector de Ataque / Evasión | Control Implementado | Tipo de Control | Evidencia para Auditoría |
+| :--- | :--- | :--- | :--- |
+| **Bypass Local (`--no-verify`)** | GitHub Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
+| **Modificación de Workflows** | CODEOWNERS + Rule Sets + SHA Pinning | Preventivo | PRs aprobados por SecOps + hashes inmutables en YAML |
+| **Falso Limpio por Caída de Red** | Patrón Atómico + `set -euo pipefail` + `jq -e` | Preventivo (Fail-Closed) | Logs CI/CD con Exit > 0 bloqueando deploy |
 
 **Autor:** Iván Ajenjo Morales | SOC Tier 1 / Tier 2 / Tier 3 ITIL SecOps | Licencia MIT
