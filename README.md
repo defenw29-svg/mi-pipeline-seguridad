@@ -144,7 +144,7 @@ fi
 
 <img width="2048" height="1152" alt="image_20261003_165848-as-con-la-misma-imagen-otra-similar-futurista-soc" src="https://github.com/user-attachments/assets/680e2219-1739-4286-aedb-fe630b4d2dab" />
 
-**mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l2:** Laboratorio de parcheo, endurecimiento y orquestación defensiva para SOC L1/L2.
+** mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de parcheo, endurecimiento y orquestación defensiva + Threat Hunting Proactivo para SOC L1-L3.
 
 Validación de ciclo de vida de parches en Ubuntu/Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ Deep Search .. | .id? // empty`. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
