@@ -140,7 +140,7 @@ fi
 ![ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
 
-### Resumen del laboratorio actual v3.4
+### Resumen del laboratorio actual v3.4 — Blue Team Lead Lab | SOC Tier 3
 
 <img width="2048" height="1152" alt="image_20261003_165848-as-con-la-misma-imagen-otra-similar-futurista-soc" src="https://github.com/user-attachments/assets/680e2219-1739-4286-aedb-fe630b4d2dab" />
 
