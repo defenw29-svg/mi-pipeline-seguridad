@@ -2,10 +2,10 @@
 
 ![SOC L1 - Ivan Ajenjo Morales](./Banner.png)
 
-[Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
-[GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-[Hardening](https://img.shields.io/badge/HARDENING-CI%2FCD-00C853?style=for-the-badge&logo=linux&logoColor=white)
-[SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
+![Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![Hardening](https://img.shields.io/badge/HARDENING-CI%2FCD-00C853?style=for-the-badge&logo=linux&logoColor=white)
+![SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
 
 ## 🛡 Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
@@ -79,7 +79,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 | **T1078** | Valid Accounts | Initial Access / Persistence | **Gitleaks**: bloquea `git push` si detecta tokens, API keys o credenciales SSH expuestas |
 | **T1190** | Exploit Public-Facing Application | Initial Access | **CodeQL (SAST) + Trivy (SCA)**: detecta inyecciones, XSS y CVEs en librerías de terceros |
 | **T1059** | Command and Scripting Interpreter | Execution | **Hipótesis de Hunting (Tier 3)**: búsqueda de `bash`, `python`, `powershell` en `/tmp` / `crontab` |
-| **T1070** | Indicator Removal | Defense Evasion | **SARIF + 【entity-GitHub Security¦canonical_name=GitHub】**: preserva evidencia aunque el atacante intente borrar logs |
+| **T1070** | Indicator Removal | Defense Evasion | **SARIF + 【entity-GitHub¦canonical_name=GitHub】 Security**: preserva evidencia aunque el atacante intente borrar logs |
 | **T1021** | Remote Services | Lateral Movement | **UFW + Wazuh**: detecta movimiento lateral vía SSH/RDP/WinRM tras compromiso inicial |
 
 **Stack de respuesta:** `Wazuh SIEM` (recolección) → `Sigma rules` (detección) → `YARA` (clasificación) → `UFW firewall` (contención) → **DETECT · ANALYZE · RESPOND**
@@ -91,14 +91,18 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 **¿Qué hace?** Escaneo profundo de secretos (API keys, tokens, `.env`, claves SSH) en código y en **historial completo de git**, no solo en el último commit.
 
 **Configuración unificada en este pipeline - Solo historial completo:**
+
+```yaml
 - name: Checkout completo del repositorio
   uses: actions/checkout@v4
   with:
     fetch-depth: 0
+
 - name: Gitleaks Deep History Scan
   uses: gitleaks/gitleaks-action@v2
   with:
     args: --redact --verbose --report-format=sarif --report-path=gitleaks.sarif
+```
 
 > ✅ Unificado: Ya no hay bloque con `--no-git`. Siempre historial completo.
 
@@ -118,7 +122,7 @@ El diseño del bloque analítico implementa un enfoque defensivo estricto para m
 
 ### 1. Extracción Segura de IDs - Sin Deep Search Ambiguo - 🆕 CORREGIDO v3.5
 
-- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en 【entity-GitHub Enterprise Cloud¦canonical_name=GitHub】 o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
 
 ```bash
 ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '
@@ -199,28 +203,28 @@ fi
 ### 💻 Pila tecnológica
 
 **Seguridad y Redes**
-[WAZUH](https://img.shields.io/badge/WAZUH-SIEM-005571?style=for-the-badge&logo=wazuh&logoColor=white)
-[SIGMA](https://img.shields.io/badge/SIGMA-RULES-00AEEF?style=for-the-badge&logo=sigma&logoColor=white)
-[YARA](https://img.shields.io/badge/YARA-MALWARE-FF0000?style=for-the-badge&logo=yara&logoColor=white)
-[GITLEAKS](https://img.shields.io/badge/GITLEAKS-T1078-black?style=for-the-badge&logo=git&logoColor=white)
-[TRIVY](https://img.shields.io/badge/TRIVY-T1190-1904DA?style=for-the-badge&logo=aqua&logoColor=white)
-[CODEQL](https://img.shields.io/badge/CODEQL-T1059-24292E?style=for-the-badge&logo=github&logoColor=white)
-[MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-FF3E3E?style=for-the-badge&logo=mitre&logoColor=white)
-[PALOALTO](https://img.shields.io/badge/PALOALTO-XSOAR-FF6A00?style=for-the-badge&logo=paloaltonetworks&logoColor=white)
-[【entity-CISCO¦canonical_name=CISCO】](https://img.shields.io/badge/CISCO-SECURITY-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white)
-[WIRESHARK](https://img.shields.io/badge/WIRESHARK-ANALYSIS-1679A7?style=for-the-badge&logo=wireshark&logoColor=white)
-[UFW](https://img.shields.io/badge/UFW-HARDENING-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+![WAZUH](https://img.shields.io/badge/WAZUH-SIEM-005571?style=for-the-badge&logo=wazuh&logoColor=white)
+![SIGMA](https://img.shields.io/badge/SIGMA-RULES-00AEEF?style=for-the-badge&logo=sigma&logoColor=white)
+![YARA](https://img.shields.io/badge/YARA-MALWARE-FF0000?style=for-the-badge&logo=yara&logoColor=white)
+![GITLEAKS](https://img.shields.io/badge/GITLEAKS-T1078-black?style=for-the-badge&logo=git&logoColor=white)
+![TRIVY](https://img.shields.io/badge/TRIVY-T1190-1904DA?style=for-the-badge&logo=aqua&logoColor=white)
+![CODEQL](https://img.shields.io/badge/CODEQL-T1059-24292E?style=for-the-badge&logo=github&logoColor=white)
+![MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-FF3E3E?style=for-the-badge&logo=mitre&logoColor=white)
+![PALOALTO](https://img.shields.io/badge/PALOALTO-XSOAR-FF6A00?style=for-the-badge&logo=paloaltonetworks&logoColor=white)
+![【entity-CISCO¦canonical_name=CISCO】](https://img.shields.io/badge/CISCO-SECURITY-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white)
+![WIRESHARK](https://img.shields.io/badge/WIRESHARK-ANALYSIS-1679A7?style=for-the-badge&logo=wireshark&logoColor=white)
+![UFW](https://img.shields.io/badge/UFW-HARDENING-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 
 **Sistemas y Automatización**
-[DOCKER](https://img.shields.io/badge/DOCKER-SWARM-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-[COMPOSE](https://img.shields.io/badge/COMPOSE-ORQUESTA-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-[LINUX](https://img.shields.io/badge/LINUX-UBUNTU-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
-[BASH](https://img.shields.io/badge/BASH-SCRIPTS-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
-[POWERSHELL](https://img.shields.io/badge/POWERSHELL-HARDEN-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-[WINDOWS](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
-[PYTHON](https://img.shields.io/badge/PYTHON-AUTOMATION-FFC300?style=for-the-badge&logo=python&logoColor=black)
-[ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-[SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
+![DOCKER](https://img.shields.io/badge/DOCKER-SWARM-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![COMPOSE](https://img.shields.io/badge/COMPOSE-ORQUESTA-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![LINUX](https://img.shields.io/badge/LINUX-UBUNTU-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+![BASH](https://img.shields.io/badge/BASH-SCRIPTS-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+![POWERSHELL](https://img.shields.io/badge/POWERSHELL-HARDEN-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
+![【entity-WINDOWS¦canonical_name=Windows】](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
+![PYTHON](https://img.shields.io/badge/PYTHON-AUTOMATION-FFC300?style=for-the-badge&logo=python&logoColor=black)
+![ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
 
 ### Resumen del laboratorio actual v3.5 — Blue Team Lead Lab | SOC Tier 3
 
@@ -228,7 +232,7 @@ fi
 
 mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de parcheo, endurecimiento y orquestación defensiva + Threat Hunting Proactivo para SOC L1-L3.
 
-Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
+Validación de ciclo de vida de parches en Ubuntu/ 【entity-Windows¦canonical_name=Windows】, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
 ### 3. 🛡 Endurecimiento Anti-Bypass y Filosofía Fail-Closed
 
