@@ -15,6 +15,8 @@
 
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
 
+<img width="1920" height="1280" alt="tabla-powerbi-ivan-moderno" src="https://github.com/user-attachments/assets/5c8df628-a8fe-4a52-abe6-4f61a421e541" />
+
 ---
 
 ### 📑 Ficha del Control de Seguridad (Matriz SecOps)
