@@ -118,7 +118,7 @@ El diseño del bloque analítico implementa un enfoque defensivo estricto para m
 
 ### 1. Extracción Segura de IDs - Sin Deep Search Ambiguo - 🆕 CORREGIDO v3.5
 
-- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en 【entity-GitHub¦canonical_name=GitHub】 Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
 
 ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '
   if type == "array" then .[0].id
@@ -209,7 +209,7 @@ fi
 ![LINUX](https://img.shields.io/badge/LINUX-UBUNTU-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![BASH](https://img.shields.io/badge/BASH-SCRIPTS-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
 ![POWERSHELL](https://img.shields.io/badge/POWERSHELL-HARDEN-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-![WINDOWS](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
+![【entity-WINDOWS¦canonical_name=WINDOWS】](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
 ![PYTHON](https://img.shields.io/badge/PYTHON-AUTOMATION-FFC300?style=for-the-badge&logo=python&logoColor=black)
 ![ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
@@ -220,7 +220,7 @@ fi
 
 mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de parcheo, endurecimiento y orquestación defensiva + Threat Hunting Proactivo para SOC L1-L3.
 
-Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
+Validación de ciclo de vida de parches en Ubuntu/ 【entity-Windows¦canonical_name=WINDOWS】, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
 ### 3. 🛡 Endurecimiento Anti-Bypass y Filosofía Fail-Closed
 
@@ -228,7 +228,7 @@ Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 
 
 #### A. Protección contra Bypass Local (T1078)
 - **Problema local:** Husky o cualquier git hook se ejecuta en local, `git commit -n` salta la validación.
-- **Solución remota:** **GitHub Push Protection** a nivel de org/repo.
+- **Solución remota:** **【entity-GitHub¦canonical_name=GitHub】 Push Protection** a nivel de org/repo.
 - **Refuerzo (Failsafe):** Gitleaks como `required status check` en Actions.
 
 #### B. Protección del Pipeline (T1553)
