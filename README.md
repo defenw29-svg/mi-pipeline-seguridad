@@ -82,7 +82,7 @@ El diseño del bloque analítico implementa un enfoque defensivo estricto para m
 
 ### 1. Extracción Segura de IDs - Sin Deep Search Ambiguo - 🆕 CORREGIDO v3.5
 
-- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en 【entity-GitHub¦canonical_name=GitHub】 Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
 
 ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '
   if type == "array" then .[0].id
@@ -115,6 +115,43 @@ fi
 
 > 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II e ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo por completo que el SOC Gate asuma un estado limpio erróneo.
 
+### 🔒 Refuerzo Avanzado de Integridad y Profundidad de Análisis (v3.5)
+
+Para elevar el nivel de garantía en auditorías técnicas y evitar puntos ciegos durante la ejecución automatizada, se incorporan dos controles adicionales de endurecimiento sobre el flujo principal:
+
+#### A. Auditoría Profunda de Historial Git (fetch-depth: 0)
+
+**Riesgo mitigado:** Un escaneo superficial (`--no-git` o clonación superficial por defecto) solo inspecciona el último commit, dejando credenciales ocultas o claves API comprometidas en revisiones anteriores del repositorio.
+
+**Control aplicado:** Se habilita la descarga completa del árbol de commits antes de lanzar Gitleaks, garantizando trazabilidad histórica total (MITRE T1078).
+
+- name: Checkout completo del repositorio
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
+- name: Gitleaks Deep History Scan
+  uses: gitleaks/gitleaks-action@v2
+  with:
+    args: --redact --verbose --report-format=sarif --report-path=gitleaks.sarif
+
+#### B. Bloqueo Estricto ante Corrupción de Evidencias
+
+**Riesgo mitigado:** Inyectar un reporte SARIF vacío (`"results": []`) ante un fallo de red permite que el flujo continúe, pero puede interpretarse como un estado limpio si el consumidor posterior no diferencia entre "0 hallazgos" y "fallo de descarga".
+
+**Control aplicado:** Se reemplaza el informe de respaldo vacío por un aborto específico (`exit 1`) con limpieza del búfer temporal, asegurando que ninguna caída de red o API degrade silenciosamente la postura de seguridad.
+
+gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
+
+if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
+  mv codeql-results.tmp codeql-results.sarif
+  echo "✅ Evidencia CodeQL validada e incorporada al SOC Gate."
+else
+  rm -f codeql-results.tmp
+  echo "❌ CRÍTICO: Evidencia SARIF corrupta o inaccesible. Bloqueando despliegue (Fail-Closed)." >&2
+  exit 1
+fi
+
 ### 💻 Pila tecnológica
 
 **Seguridad y Redes**
@@ -136,7 +173,7 @@ fi
 ![LINUX](https://img.shields.io/badge/LINUX-UBUNTU-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![BASH](https://img.shields.io/badge/BASH-SCRIPTS-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
 ![POWERSHELL](https://img.shields.io/badge/POWERSHELL-HARDEN-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-![【entity-WINDOWS¦canonical_name=WINDOWS】](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
+![WINDOWS](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
 ![PYTHON](https://img.shields.io/badge/PYTHON-AUTOMATION-FFC300?style=for-the-badge&logo=python&logoColor=black)
 ![ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
@@ -147,7 +184,7 @@ fi
 
 mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de parcheo, endurecimiento y orquestación defensiva + Threat Hunting Proactivo para SOC L1-L3.
 
-Validación de ciclo de vida de parches en Ubuntu/ 【entity-Windows¦canonical_name=WINDOWS】, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
+Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
 ### 3. 🛡️ Endurecimiento Anti-Bypass y Filosofía Fail-Closed
 
@@ -155,7 +192,7 @@ Validación de ciclo de vida de parches en Ubuntu/ 【entity-Windows¦canonical_
 
 #### A. Protección contra Bypass Local (T1078)
 - **Problema local:** Husky o cualquier git hook se ejecuta en local, `git commit -n` salta la validación.
-- **Solución remota:** **【entity-GitHub¦canonical_name=GitHub】 Push Protection** a nivel de org/repo.
+- **Solución remota:** **GitHub Push Protection** a nivel de org/repo.
 - **Refuerzo (Failsafe):** Gitleaks como `required status check` en Actions.
 
 #### B. Protección del Pipeline (T1553)
@@ -183,7 +220,7 @@ mv "$TMP" "$FINAL"
 
 | Vector de Ataque / Evasión | Control Implementado | Tipo de Control | Evidencia para Auditoría |
 | :--- | :--- | :--- | :--- |
-| **Bypass Local (`--no-verify`)** | GitHub Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
+| **Bypass Local (`--no-verify`)** | 【entity-GitHub¦canonical_name=GitHub】 Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
 | **Modificación de Workflows** | CODEOWNERS + Rule Sets + SHA Pinning | Preventivo | PRs aprobados por SecOps + hashes inmutables en YAML |
 | **Falso Limpio por Caída de Red** | Patrón Atómico + `set -euo pipefail` + `jq -e` | Preventivo (Fail-Closed) | Logs CI/CD con Exit > 0 bloqueando deploy |
 
