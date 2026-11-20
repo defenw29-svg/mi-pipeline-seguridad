@@ -35,7 +35,6 @@ Como medida de **endurecimiento y prevención continua (Hardening)** para mitiga
 - Limpiar en Tableau Prep: quitar nulos, cambiar tipos
 - Arrastrar: Severidad a Color | Herramienta a Filas | Hallazgos a Columnas
 - Publicar en Tableau Cloud y programar Extract Refresh
-- Ideal para Data Fundamentals de IBM SkillsBuild, gráficos más bonitos para exponer
 
 **Cuándo usar cada una:**
 - Power BI: Para SOC de empresa, informes diarios, la que piden en ofertas
