@@ -16,7 +16,38 @@
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
 
 <img width="1920" height="1280" alt="tabla-powerbi-ivan-moderno" src="https://github.com/user-attachments/assets/5c8df628-a8fe-4a52-abe6-4f61a421e541" />
+> Dashboard de tu pipeline en estilo Power BI. Los datos salen del pipeline, tú solo los visualizas.
 
+**Datos que genera el pipeline:**
+- wazuh-alerts.json - alertas SOC
+- codeql-results.sarif - hallazgos SAST
+- trivy-report.json - CVEs
+
+**Cómo usarlo en Power BI:**
+- Abrir Power BI Desktop - Obtener datos - JSON / CSV
+- Importar los 3 archivos y unir por Fecha + Severidad
+- Arrastrar: Fecha a Eje X | Herramienta a Leyenda | Hallazgos a Valores
+- Publicar en Power BI Service y programar Actualización diaria
+- Cuando entra una alerta nueva, el dashboard se actualiza solo
+
+**Cómo usarlo en Tableau:**
+- Abrir Tableau - Conectar a datos - JSON / CSV
+- Limpiar en Tableau Prep: quitar nulos, cambiar tipos
+- Arrastrar: Severidad a Color | Herramienta a Filas | Hallazgos a Columnas
+- Publicar en Tableau Cloud y programar Extract Refresh
+- Ideal para Data Fundamentals de IBM SkillsBuild, gráficos más bonitos para exponer
+
+**Cuándo usar cada una:**
+- Power BI: Para SOC de empresa, informes diarios, la que piden en ofertas
+- Tableau: Para el curso, para el portfolio, para impresionar en entrevista
+- Las 2 juntas: Power BI para trabajar + Tableau para enseñar
+
+**Truco:**
+Si exportas siempre con el mismo formato de CSV, no rehaces el gráfico. Solo sustituyes el archivo y Power BI / Tableau lo refresca solo.
+
+**Archivos en el repo:**
+- tabla-powerbi-ivan-moderno.jpg - imagen del dashboard
+- tabla-powerbi-ivan-moderno-v2.jpg - versión sin amarillo
 ---
 
 ### 📑 Ficha del Control de Seguridad (Matriz SecOps)
