@@ -1,6 +1,6 @@
 <img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/166c31db-b964-42f9-a75a-21a7b6b24d36" />
 
-![SOC L1 - Ivan Ajenjo Morales](./Banner.png) 
+![SOC L1 - Ivan Ajenjo Morales](./Banner.png)
 
 ![Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
@@ -11,6 +11,8 @@
 
 ![CI/CD Security Pipeline - SOC Tier 1/2/3](INFOGRAFIA_PIPELINE_SOC.jpg)
 
+> **🆕 INFOGRAFÍA NUEVA v3.5 Fail-Closed:** Si SARIF corrupto o vacío -> `exit 1` | NO se inyecta SARIF vacío | deploy BLOQUEADO. Extracción segura de IDs sin Deep Search ambiguo.
+
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
 
 ---
@@ -20,9 +22,9 @@ Como medida de **endurecimiento y prevención continua (Hardening)** para mitiga
 | Fase del Pipeline | Herramienta | Objetivo Técnico | Tipo de Control |
 | :--- | :--- | :--- | :--- |
 | **1. Escaneo secreto** | `Gitleaks` | Detectar credenciales, claves API o tokens SSH expuestos en el código fuente. | Preventivo (Bloquea el push) |
-| **2. Análisis SAST** | `GitHub CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
+| **2. Análisis SAST** | `【entity-GitHub¦canonical_name=GitHub】 CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
 | **3. Escaneo SCA** | `Aqua Trivy` | Escanear el árbol de dependencias (`packages`, librerías de terceros) contra CVEs conocidos. | Preventivo (Filtra severidad Alta/Crítica) |
-| **4. Implementación de CD** | `GitHub Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
+| **4. Implementación de CD** | `【entity-GitHub¦canonical_name=GitHub】 Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
 
 ---
 
@@ -47,7 +49,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 | **T1078** | Valid Accounts | Initial Access / Persistence | **Gitleaks**: bloquea `git push` si detecta tokens, API keys o credenciales SSH expuestas |
 | **T1190** | Exploit Public-Facing Application | Initial Access | **CodeQL (SAST) + Trivy (SCA)**: detecta inyecciones, XSS y CVEs en librerías de terceros |
 | **T1059** | Command and Scripting Interpreter | Execution | **Hipótesis de Hunting (Tier 3)**: búsqueda de `bash`, `python`, `powershell` en `/tmp` / `crontab` |
-| **T1070** | Indicator Removal | Defense Evasion | **SARIF + GitHub Security**: preserva evidencia aunque el atacante intente borrar logs |
+| **T1070** | Indicator Removal | Defense Evasion | **SARIF + 【entity-GitHub Security¦canonical_name=GitHub】**: preserva evidencia aunque el atacante intente borrar logs |
 | **T1021** | Remote Services | Lateral Movement | **UFW + Wazuh**: detecta movimiento lateral vía SSH/RDP/WinRM tras compromiso inicial |
 
 **Stack de respuesta:** `Wazuh SIEM` (recolección) → `Sigma rules` (detección) → `YARA` (clasificación) → `UFW firewall` (contención) → **DETECT · ANALYZE · RESPOND**
@@ -59,58 +61,57 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 **¿Qué hace?** Escaneo profundo de secretos (API keys, tokens, `.env`, claves SSH) en código y en **historial completo de git**, no solo en el último commit.
 
 **Configuración endurecida en este pipeline:**
-```yaml
 - name: Gitleaks Secret Scan
   uses: gitleaks/gitleaks-action@v2
   with:
     args: --redact --verbose --no-git --report-format=sarif --report-path=gitleaks.sarif
-```
 
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
 
 **Líneas de caza propuestas:**
-1.  **Persistencia:** Búsqueda de binarios sospechosos en `/tmp` o `crontab` creados durante el periodo en que `vsftpd/21` estuvo expuesto.
-
-2.  **Movimiento lateral SMB:** Correlación en `auth.log` / `Sysmon Event ID 4624` de intentos de uso de SMBv1 después de su deshabilitación.
-
-3.  **Detección proactiva:** Creación de reglas Sigma/YARA basadas en evidencias SARIF generadas por Trivy y CodeQL para alimentar SIEM (Wazuh / Sentinel) bajo marco MITRE ATT&CK (T1078, T1190).
+1. **Persistencia:** Búsqueda de binarios sospechosos en `/tmp` o `crontab` creados durante el periodo en que `vsftpd/21` estuvo expuesto.
+2. **Movimiento lateral SMB:** Correlación en `auth.log` / `Sysmon Event ID 4624` de intentos de uso de SMBv1 después de su deshabilitación.
+3. **Detección proactiva:** Creación de reglas Sigma/YARA basadas en evidencias SARIF generadas por Trivy y CodeQL para alimentar SIEM (Wazuh / Sentinel) bajo marco MITRE ATT&CK (T1078, T1190).
 
 **Objetivo:** Pasar de remediación reactiva a caza hipotética asumiendo brecha, validando que el endurecimiento con UFW y gestión de ciclo de vida de parches no dejó artefactos residuales.
 
-## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.4
+## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.5
 
 El diseño del bloque analítico implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a Wazuh.
 
-### 1. Extracción Resiliente de IDs mediante Recursividad JQ Deep Search
+### 1. Extracción Segura de IDs - Sin Deep Search Ambiguo - 🆕 CORREGIDO v3.5
 
-- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. **Resultado:** `ANALYSIS_ID=""` -> SARIF vacío -> falso 0 fantasma -> bypass del SOC Gate.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
 
-```bash
-ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '.. | .id? // empty' | head -n1)
-```
+ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '
+  if type == "array" then .[0].id
+  elif has("analyses") then .analyses[0].id
+  elif has("id") then .id
+  else empty end // empty
+')
 
-> 💡 **Mecanismo:** El operador `..` de `jq` realiza una búsqueda transversal recursiva en todo el árbol JSON. Localiza `.id` sin importar si la API encapsula la respuesta en `.[0].id`, `.analyses[0].id` o `.data.codeScanning.analyses[0].id`. Es el patrón estándar utilizado en workflows internos de alta disponibilidad.
+if [ -z "$ANALYSIS_ID" ] || [ "$ANALYSIS_ID" = "null" ]; then
+  echo "::error::No se pudo obtener ANALYSIS_ID válido - FAIL CLOSED"
+  exit 1
+fi
 
-### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate)
+> 💡 **Mecanismo:** Buscamos solo en los lugares donde GitHub documenta el ID del análisis: array directo, `.analyses[0].id` o `.id` raíz. Si no está en ninguno, fallamos en cerrado en vez de inventar un ID.
+
+### 2. Persistencia Atómica de Evidencias (Write-to-Temp + Validate) - 🆕 CORREGIDO v3.5
 
 - **Problema:** La instrucción `gh api ... > codeql-results.sarif` ejecuta una redirección directa en la shell. Si la conexión de red se degrada a mitad de la descarga, deja un archivo truncado e inválido. Un cortocircuito sutil con fallbacks genéricos de tipo `|| echo '{}'` expone al pipeline a una condición de carrera (*race condition*), donde el SOC Gate lee un archivo corrupto antes del formateo, asumiendo un estado limpio erróneo (falso 0).
 
-```bash
-# 1. Vuelco inicial a buffer temporal aislado
-gh api -H "Accept: application/sarif+json" "repos/\({{ github.repository }}/code-scanning/analyses/\)ANALYSIS_ID" > codeql-results.tmp
+gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
 
-# 2. Validación estricta de tamaño (-s) + verificación de firma de esquema SARIF (jq -e '.runs')
 if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
-  # 3. Sustitución atómica (operación indivisible e instantánea del sistema de archivos)
   mv codeql-results.tmp codeql-results.sarif
   echo "✅ CodeQL REAL cargado con éxito."
 else
-  # 4. Mitigación: Si está corrupto, se inyecta un reporte estructurado alternativo transparente para el SOC sin enmascarar riesgos.
-  echo '{"version":"2.1.0","runs":[{"results":[]}]}' > codeql-results.sarif
+  echo "::error::CodeQL SARIF corrupto o vacío - FAIL CLOSED, deploy bloqueado"
   rm -f codeql-results.tmp
+  exit 1
 fi
-```
 
 > 🔒 **Garantía DevSecOps:** Patrón de diseño con buffer temporal idéntico al exigido por auditorías **SOC 2 Type II e ISO 27001**. Si el flujo de red se corrompe, el archivo SARIF final jamás se ve alterado a medias, impidiendo por completo que el SOC Gate asuma un estado limpio erróneo.
 
@@ -125,7 +126,7 @@ fi
 ![CODEQL](https://img.shields.io/badge/CODEQL-T1059-24292E?style=for-the-badge&logo=github&logoColor=white)
 ![MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-FF3E3E?style=for-the-badge&logo=mitre&logoColor=white)
 ![PALOALTO](https://img.shields.io/badge/PALOALTO-XSOAR-FF6A00?style=for-the-badge&logo=paloaltonetworks&logoColor=white)
-![CISCO](https://img.shields.io/badge/CISCO-SECURITY-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white)
+![【entity-CISCO¦canonical_name=CISCO】](https://img.shields.io/badge/CISCO-SECURITY-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white)
 ![WIRESHARK](https://img.shields.io/badge/WIRESHARK-ANALYSIS-1679A7?style=for-the-badge&logo=wireshark&logoColor=white)
 ![UFW](https://img.shields.io/badge/UFW-HARDENING-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 
@@ -135,26 +136,26 @@ fi
 ![LINUX](https://img.shields.io/badge/LINUX-UBUNTU-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![BASH](https://img.shields.io/badge/BASH-SCRIPTS-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
 ![POWERSHELL](https://img.shields.io/badge/POWERSHELL-HARDEN-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-![WINDOWS](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
+![【entity-WINDOWS¦canonical_name=WINDOWS】](https://img.shields.io/badge/WINDOWS-HARDENING-0078D4?style=for-the-badge&logo=windows11&logoColor=white)
 ![PYTHON](https://img.shields.io/badge/PYTHON-AUTOMATION-FFC300?style=for-the-badge&logo=python&logoColor=black)
 ![ACTIONS](https://img.shields.io/badge/GITHUB-ACTIONS-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![SBOM](https://img.shields.io/badge/SBOM-CYCLONEDX-6E40C9?style=for-the-badge&logo=cyclonedx&logoColor=white)
 
-### Resumen del laboratorio actual v3.4 — Blue Team Lead Lab | SOC Tier 3
+### Resumen del laboratorio actual v3.5 — Blue Team Lead Lab | SOC Tier 3
 
-<img width="2048" height="1152" alt="image_20261003_165848-as-con-la-misma-imagen-otra-similar-futurista-soc" src="https://github.com/user-attachments/assets/680e2219-1739-4286-aedb-fe630b4d2dab" />
+<img width="2048" height="1152" alt="[STRIPPED 71 bytes]" src="https://github.com/user-attachments/assets/680e2219-1739-4286-aedb-fe630b4d2dab" />
 
 mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de parcheo, endurecimiento y orquestación defensiva + Threat Hunting Proactivo para SOC L1-L3.
 
-Validación de ciclo de vida de parches en Ubuntu/Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ Deep Search .. | .id? // empty`. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
+Validación de ciclo de vida de parches en Ubuntu/ 【entity-Windows¦canonical_name=WINDOWS】, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
-### 3. 🛡 Endurecimiento Anti-Bypass y Filosofía Fail-Closed
+### 3. 🛡️ Endurecimiento Anti-Bypass y Filosofía Fail-Closed
 
 > **Problema:** Un atacante o un dev puede evadir los controles con `git commit --no-verify`, modificando `.github/workflows/` o provocando un fallo de red para forzar un estado limpio erróneo (falso 0).
 
 #### A. Protección contra Bypass Local (T1078)
 - **Problema local:** Husky o cualquier git hook se ejecuta en local, `git commit -n` salta la validación.
-- **Solución remota:** **GitHub Push Protection** a nivel de org/repo.
+- **Solución remota:** **【entity-GitHub¦canonical_name=GitHub】 Push Protection** a nivel de org/repo.
 - **Refuerzo (Failsafe):** Gitleaks como `required status check` en Actions.
 
 #### B. Protección del Pipeline (T1553)
@@ -168,7 +169,6 @@ Validación de ciclo de vida de parches en Ubuntu/Windows, deshabilitado SMBv1 y
 - **Refuerzo:** `set -euo pipefail` en todo Bash. Si cae la red, el pipeline falla en cerrado y bloquea el deploy.
 
 **Script de referencia Fail-Closed:**
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 TMP=$(mktemp /tmp/trivy-XXXXXX.json)
@@ -179,7 +179,6 @@ jq -e '.Results | length > 0' "$TMP" > /dev/null
 mkdir -p "$(dirname "$FINAL")"
 mv "$TMP" "$FINAL"
 
-```
 #### 📊 Matriz de Trazabilidad de Garantía SOC (CC6.1 / A.8.26)
 
 | Vector de Ataque / Evasión | Control Implementado | Tipo de Control | Evidencia para Auditoría |
