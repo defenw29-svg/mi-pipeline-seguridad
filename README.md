@@ -9,7 +9,8 @@
 
 ## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
-![CI/CD Security Pipeline - SOC Tier 1/2/3](INFOGRAFIA_PIPELINE_SOC.jpg)
+<img width="626" height="97" alt="image" src="https://github.com/user-attachments/assets/883c8a0e-9786-4e9c-bec6-eb4ad8ed5437" />
+
 
 > **🆕 INFOGRAFÍA NUEVA v3.5 Fail-Closed:** Si SARIF corrupto o vacío -> `exit 1` | NO se inyecta SARIF vacío | deploy BLOQUEADO. Extracción segura de IDs sin Deep Search ambiguo.
 
