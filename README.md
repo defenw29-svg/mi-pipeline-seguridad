@@ -14,7 +14,41 @@
 > **🆕 INFOGRAFÍA NUEVA v3.5 Fail-Closed:** Si SARIF corrupto o vacío -> `exit 1` | NO se inyecta SARIF vacío | deploy BLOQUEADO. Extracción segura de IDs sin Deep Search ambiguo.
 
 Como medida de **endurecimiento y prevención continua (Hardening)** para mitigar vulnerabilidades antes de que lleguen a producción, se ha implementado una canalización automatizada en este repositorio. Este procedimiento intercepta el código en busca de fallos de configuración o dependencias vulnerables antes de su despliegue técnico.
+---
 
+### 📊 Tableau - Visualización Automatizada en el Pipeline (SOC + Data) - v3.6
+
+> **Objetivo:** Convertir las alertas de Wazuh / SARIF de Trivy + CodeQL en un dashboard tipo Tableau, sin hacerlo a mano cada vez.
+
+![TABLEAU - Análisis de Datos](pipeline-seguridad.webp)
+
+**Flujo en este repo:**
+
+1. **Conectar datos:** wazuh-alerts.json + codeql-results.sarif + trivy-report.json a CSV limpio
+2. **Arrastrar y soltar (en Tableau):** Fecha a Columnas | Severidad a Color | Count a Filas
+3. **Automatizar y publicar:** El pipeline genera el gráfico y lo publica en Tableau Cloud / lo guarda como imagen en el repo
+
+**Paneles del dashboard:**
+
+| Panel | Qué muestra | Fuente |
+| :--- | :--- | :--- |
+| Alertas por Día | Nº alertas por día | Wazuh |
+| Tendencia de Alertas | Evolución tras parche | Wazuh |
+| Alertas por MITRE | T1078, T1190, T1059, T1021 | SARIF + Sigma |
+| KPIs Clave | Total alertas / Críticas / MTTR / % Parcheado | Trivy + CodeQL |
+
+**Automatización en 【entity-GitHub¦canonical_name=GitHub】 Actions:**
+
+    - name: Generar dashboard tipo Tableau
+      run: python scripts/generate_dashboard.py --input wazuh-alerts.json --output dashboard-tableau.png
+
+**Por qué Tableau y no solo Excel:**
+- Excel = manual, tienes que dar a Actualizar todo
+- Watson Studio = fácil, pero básico para SOC
+- Tableau = conectas una vez, programas el refresh y el gráfico se actualiza solo cuando entra una alerta nueva
+
+**Trial oficial:** https://www.tableau.com/products/trial
+**Versión gratis para practicar:** Tableau Public - no subir datos sensibles del lab
 ---
 
 ### 📑 Ficha del Control de Seguridad (Matriz SecOps)
