@@ -45,9 +45,6 @@ Como medida de **endurecimiento y prevención continua (Hardening)** para mitiga
 **Truco:**
 Si exportas siempre con el mismo formato de CSV, no rehaces el gráfico. Solo sustituyes el archivo y Power BI / Tableau lo refresca solo.
 
-**Archivos en el repo:**
-- tabla-powerbi-ivan-moderno.jpg - imagen del dashboard
-- tabla-powerbi-ivan-moderno-v2.jpg - versión sin amarillo
 ---
 
 ### 📑 Ficha del Control de Seguridad (Matriz SecOps)
