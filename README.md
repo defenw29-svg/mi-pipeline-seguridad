@@ -8,7 +8,8 @@
 ![SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
 
 ## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
-![CI/CD Security Pipeline - SOC Tier 1/2/3](INFOGRAFIA_PIPELINE_SOC.jpg)
+
+![CI/CD Security Pipeline - SOC Tier 1/2/3](pipeline-seguridad.webp)
 
 > **🆕 INFOGRAFÍA NUEVA v3.5 Fail-Closed:** Si SARIF corrupto o vacío -> `exit 1` | NO se inyecta SARIF vacío | deploy BLOQUEADO. Extracción segura de IDs sin Deep Search ambiguo.
 
