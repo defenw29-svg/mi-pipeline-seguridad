@@ -3,11 +3,11 @@
 ![SOC L1 - Ivan Ajenjo Morales](./Banner.png)
 
 ![Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![【entity-GitHub¦canonical_name=GitHub】 Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![Hardening](https://img.shields.io/badge/HARDENING-CI%2FCD-00C853?style=for-the-badge&logo=linux&logoColor=white)
 ![SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
 
-## 🛡️ Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
+## 🛡 Procedimiento SOC L1: Remediación Automatizada mediante Pipeline CI/CD
 
 ![CI/CD Security Pipeline - SOC Tier 1/2/3](pipeline-seguridad.webp)
 
@@ -37,9 +37,10 @@ Como medida de **endurecimiento y prevención continua (Hardening)** para mitiga
 - Publicar en Tableau Cloud y programar Extract Refresh
 
 **Cuándo usar cada una:**
-- Power BI: Para SOC de empresa, informes diarios, la que piden en ofertas
-- Tableau: Para el curso, para el portfolio, para impresionar en entrevista
-- Las 2 juntas: Power BI para trabajar + Tableau para enseñar
+- Power BI: Para SOC, informes diarios y visualizar alertas. La que más se usa para automatizar dashboards de seguridad.
+- Tableau: Otro buen programa de integración para visualización. Ideal para presentar datos, practicar gráficos y complementar Power BI en el portfolio.
+- Las 2 juntas: Power BI para el día a día + Tableau para presentar y aprender visualización.
+- Grafana: Para Response en vivo. Wazuh + Grafana = detecto y respondo ahora. Power BI / Tableau = análisis para refuerzo después.
 
 **Truco:**
 Si exportas siempre con el mismo formato de CSV, no rehaces el gráfico. Solo sustituyes el archivo y Power BI / Tableau lo refresca solo.
@@ -51,9 +52,9 @@ Si exportas siempre con el mismo formato de CSV, no rehaces el gráfico. Solo su
 | Fase del Pipeline | Herramienta | Objetivo Técnico | Tipo de Control |
 | :--- | :--- | :--- | :--- |
 | **1. Escaneo secreto** | `Gitleaks` | Detectar credenciales, claves API o tokens SSH expuestos en el código fuente. | Preventivo (Bloquea el push) |
-| **2. Análisis SAST** | `【entity-GitHub¦canonical_name=GitHub】 CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
+| **2. Análisis SAST** | `GitHub CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
 | **3. Escaneo SCA** | `Aqua Trivy` | Escanear el árbol de dependencias (`packages`, librerías de terceros) contra CVEs conocidos. | Preventivo (Filtra severidad Alta/Crítica) |
-| **4. Implementación de CD** | `【entity-GitHub¦canonical_name=GitHub】 Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
+| **4. Implementación de CD** | `GitHub Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
 
 ---
 
@@ -63,7 +64,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 1. **Detección Precoz:** Si el desarrollador incluye una dependencia vulnerable (ej. una versión antigua sujeta a un CVE crítico), la fase de `Dependency Audit (Trivy)` registrará el fallo.
 
-2. **Generación de Alertas:** El pipeline recopila el informe en formato estándar **SARIF** y lo inyecta automáticamente en la pestaña **Seguridad y calidad -> Code scanning** de GitHub.
+2. **Generación de Alertas:** El pipeline recopila el informe en formato estándar **SARIF** y lo inyecta automáticamente en la pestaña **Seguridad y calidad -> Code scanning** de 【entity-GitHub¦canonical_name=GitHub】.
 
 3. **Acción del Analista SOC:** El analista recibe la alerta con la línea exacta afectada y la sugerencia de parcheo (ej. *Actualizar paquete a versión X.X*). El despliegue técnico queda congelado hasta que el parche sea aplicado con éxito en el entorno local.
 
@@ -78,12 +79,12 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 | **T1078** | Valid Accounts | Initial Access / Persistence | **Gitleaks**: bloquea `git push` si detecta tokens, API keys o credenciales SSH expuestas |
 | **T1190** | Exploit Public-Facing Application | Initial Access | **CodeQL (SAST) + Trivy (SCA)**: detecta inyecciones, XSS y CVEs en librerías de terceros |
 | **T1059** | Command and Scripting Interpreter | Execution | **Hipótesis de Hunting (Tier 3)**: búsqueda de `bash`, `python`, `powershell` en `/tmp` / `crontab` |
-| **T1070** | Indicator Removal | Defense Evasion | **SARIF + 【entity-GitHub Security¦canonical_name=GitHub】**: preserva evidencia aunque el atacante intente borrar logs |
+| **T1070** | Indicator Removal | Defense Evasion | **SARIF + GitHub Security**: preserva evidencia aunque el atacante intente borrar logs |
 | **T1021** | Remote Services | Lateral Movement | **UFW + Wazuh**: detecta movimiento lateral vía SSH/RDP/WinRM tras compromiso inicial |
 
 **Stack de respuesta:** `Wazuh SIEM` (recolección) → `Sigma rules` (detección) → `YARA` (clasificación) → `UFW firewall` (contención) → **DETECT · ANALYZE · RESPOND**
 
-🛡️Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
+🛡Este pipeline opera en **SOC Tier 1 / Tier 2**, pero deja la base lista para **Threat Hunting proactivo (Tier 3)**.
 
 #### 🔐 Refuerzo Gitleaks - Control Preventivo T1078
 
@@ -95,6 +96,8 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
   with:
     args: --redact --verbose --no-git --report-format=sarif --report-path=gitleaks.sarif
 
+> ⚠️ Nota: El bloque de arriba con `--no-git` solo mira archivos actuales. El escaneo de historial completo es el de abajo en Refuerzo Avanzado con `fetch-depth: 0` sin `--no-git`.
+
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
 
@@ -105,13 +108,13 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 **Objetivo:** Pasar de remediación reactiva a caza hipotética asumiendo brecha, validando que el endurecimiento con UFW y gestión de ciclo de vida de parches no dejó artefactos residuales.
 
-## 🛡️ Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.5
+## 🛡 Hardening de Arquitectura y Mitigación de Falsos Negativos (SOC Assurance) - v3.5
 
 El diseño del bloque analítico implementa un enfoque defensivo estricto para mitigar ataques de evasión ("Bypass") y garantizar la integridad de las evidencias remitidas a Wazuh.
 
 ### 1. Extracción Segura de IDs - Sin Deep Search Ambiguo - 🆕 CORREGIDO v3.5
 
-- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en 【entity-GitHub¦canonical_name=GitHub】 Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
+- **Problema:** El filtrado rígido `.[0].id` se rompe silenciosamente si la API de Code Scanning introduce metadatos de paginación `{"total_count": 100, "analyses": [...]}` en GitHub Enterprise Cloud o si el payload es modificado por un proxy federado. El anterior `.. | .id? | head -n1` también era peligroso, porque cogía el *primer* `.id` de todo el JSON, aunque fuera el del repo o el del actor. **Resultado:** `ANALYSIS_ID` incorrecto -> SARIF incorrecto -> falso 0 fantasma -> bypass del SOC Gate.
 
 ANALYSIS_ID=$(echo "$ANALYSIS_OUT" | jq -r '
   if type == "array" then .[0].id
@@ -131,7 +134,7 @@ fi
 
 - **Problema:** La instrucción `gh api ... > codeql-results.sarif` ejecuta una redirección directa en la shell. Si la conexión de red se degrada a mitad de la descarga, deja un archivo truncado e inválido. Un cortocircuito sutil con fallbacks genéricos de tipo `|| echo '{}'` expone al pipeline a una condición de carrera (*race condition*), donde el SOC Gate lee un archivo corrupto antes del formateo, asumiendo un estado limpio erróneo (falso 0).
 
-gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
+gh api -H "Accept: application/sarif+json" "repos/${{ 【entity-github¦canonical_name=GitHub】.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
 
 if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
   mv codeql-results.tmp codeql-results.sarif
@@ -215,7 +218,7 @@ mi-pipeline-seguridad | Equipo-azul-laboratorio-sociedad-l1-l3: Laboratorio de p
 
 Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 y cierre puertos vsftpd/21 con UFW + Pipeline SOC `Gitleaks T1078 + Trivy T1190 + CodeQL T1059` con Gate atómico `tmp -> validate -> mv` y `JQ` seguro sin Deep Search ambiguo. Orquestación local `docker compose up secops-runner` idéntica a Actions -> `wazuh-alerts.json` a Wazuh `http://localhost:5601`.
 
-### 3. 🛡️ Endurecimiento Anti-Bypass y Filosofía Fail-Closed
+### 3. 🛡 Endurecimiento Anti-Bypass y Filosofía Fail-Closed
 
 > **Problema:** Un atacante o un dev puede evadir los controles con `git commit --no-verify`, modificando `.github/workflows/` o provocando un fallo de red para forzar un estado limpio erróneo (falso 0).
 
@@ -231,17 +234,30 @@ Validación de ciclo de vida de parches en Ubuntu/ Windows, deshabilitado SMBv1 
 
 #### C. Filosofía Fail-Closed en Red (Anti Falso Limpio)
 - **Problema:** Si un comando de red falla en un pipe o Trivy/CodeQL no baja la DB, puede retornar exit `0` con "0 vulnerabilidades".
-- **Solución atómica:** Patrón `tmp -> validate -> mv`. Se escribe en temporal, se valida con `jq -e '.runs'` (SARIF) / `'.Results'` (Trivy) y solo si es válido se mueve atómicamente.
+- **Solución atómica:** Patrón `tmp -> validate -> mv`. Se escribe en temporal, se valida con `jq -e '.runs'` (SARIF) / `jq -e 'has("Results")'` (Trivy) y solo si es válido se mueve atómicamente.
 - **Refuerzo:** `set -euo pipefail` en todo Bash. Si cae la red, el pipeline falla en cerrado y bloquea el deploy.
 
-**Script de referencia Fail-Closed:**
+**Script de referencia Fail-Closed - CORREGIDO v3.6 - 0 vulnerabilidades es limpio, no es error:**
 #!/usr/bin/env bash
 set -euo pipefail
 TMP=$(mktemp /tmp/trivy-XXXXXX.json)
 FINAL="./security/trivy-report.json"
 trap 'rm -f "$TMP"' EXIT
 trivy image --cache-dir /var/cache/trivy --skip-db-update --format json --output "$TMP" my-app:latest
-jq -e '.Results | length > 0' "$TMP" > /dev/null
+if [ ! -s "$TMP" ]; then
+  echo "CRITICO: Trivy no generó reporte - FAIL CLOSED" >&2
+  exit 1
+fi
+if ! jq -e '.' "$TMP" >/dev/null 2>&1; then
+  echo "CRITICO: Trivy reporte corrupto - FAIL CLOSED" >&2
+  exit 1
+fi
+if ! jq -e 'has("Results")' "$TMP" >/dev/null 2>&1; then
+  echo "CRITICO: Trivy sin campo Results - FAIL CLOSED" >&2
+  exit 1
+fi
+VULNS=$(jq -r '[.Results[]?.Vulnerabilities[]?] | length' "$TMP")
+echo "Trivy: $VULNS vulnerabilidades detectadas - 0 es limpio, es OK"
 mkdir -p "$(dirname "$FINAL")"
 mv "$TMP" "$FINAL"
 
@@ -249,8 +265,6 @@ mv "$TMP" "$FINAL"
 
 | Vector de Ataque / Evasión | Control Implementado | Tipo de Control | Evidencia para Auditoría |
 | :--- | :--- | :--- | :--- |
-| **Bypass Local (`--no-verify`)** | 【entity-GitHub¦canonical_name=GitHub】 Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
+| **Bypass Local (`--no-verify`)** | GitHub Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
 | **Modificación de Workflows** | CODEOWNERS + Rule Sets + SHA Pinning | Preventivo | PRs aprobados por SecOps + hashes inmutables en YAML |
 | **Falso Limpio por Caída de Red** | Patrón Atómico + `set -euo pipefail` + `jq -e` | Preventivo (Fail-Closed) | Logs CI/CD con Exit > 0 bloqueando deploy |
-
-**Autor:** Iván Ajenjo Morales | SOC Tier 1 / Tier 2 / Tier 3 ITIL SecOps | Licencia MIT
