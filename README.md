@@ -3,7 +3,7 @@
 ![SOC L1 - Ivan Ajenjo Morales](./Banner.png)
 
 ![Trivy](https://img.shields.io/badge/TRIVY-HARDENING-C71B26?style=for-the-badge&logo=aqua&logoColor=white)
-![【entity-GitHub¦canonical_name=GitHub】 Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GITHUB%20ACTIONS-SECURITY%20PIPELINE-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![Hardening](https://img.shields.io/badge/HARDENING-CI%2FCD-00C853?style=for-the-badge&logo=linux&logoColor=white)
 ![SOC](https://img.shields.io/badge/SOC-1%20REMEDIATION-FF6F00?style=for-the-badge)
 
@@ -52,9 +52,9 @@ Si exportas siempre con el mismo formato de CSV, no rehaces el gráfico. Solo su
 | Fase del Pipeline | Herramienta | Objetivo Técnico | Tipo de Control |
 | :--- | :--- | :--- | :--- |
 | **1. Escaneo secreto** | `Gitleaks` | Detectar credenciales, claves API o tokens SSH expuestos en el código fuente. | Preventivo (Bloquea el push) |
-| **2. Análisis SAST** | `GitHub CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
+| **2. Análisis SAST** | `【entity-GitHub¦canonical_name=GitHub】 CodeQL` | Análisis estático automatizado para identificar malas prácticas y fallos lógicos (Inyecciones, XSS). | Detectivo / Correctivo |
 | **3. Escaneo SCA** | `Aqua Trivy` | Escanear el árbol de dependencias (`packages`, librerías de terceros) contra CVEs conocidos. | Preventivo (Filtra severidad Alta/Crítica) |
-| **4. Implementación de CD** | `GitHub Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
+| **4. Implementación de CD** | `【entity-GitHub¦canonical_name=GitHub】 Actions` | Despliegue técnico seguro y automatizado únicamente si los 3 controles previos arrojan 0 alertas. | Operativo / Automatizado |
 
 ---
 
@@ -64,7 +64,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 1. **Detección Precoz:** Si el desarrollador incluye una dependencia vulnerable (ej. una versión antigua sujeta a un CVE crítico), la fase de `Dependency Audit (Trivy)` registrará el fallo.
 
-2. **Generación de Alertas:** El pipeline recopila el informe en formato estándar **SARIF** y lo inyecta automáticamente en la pestaña **Seguridad y calidad -> Code scanning** de 【entity-GitHub¦canonical_name=GitHub】.
+2. **Generación de Alertas:** El pipeline recopila el informe en formato estándar **SARIF** y lo inyecta automáticamente en la pestaña **Seguridad y calidad -> Code scanning** de GitHub.
 
 3. **Acción del Analista SOC:** El analista recibe la alerta con la línea exacta afectada y la sugerencia de parcheo (ej. *Actualizar paquete a versión X.X*). El despliegue técnico queda congelado hasta que el parche sea aplicado con éxito en el entorno local.
 
@@ -79,7 +79,7 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 | **T1078** | Valid Accounts | Initial Access / Persistence | **Gitleaks**: bloquea `git push` si detecta tokens, API keys o credenciales SSH expuestas |
 | **T1190** | Exploit Public-Facing Application | Initial Access | **CodeQL (SAST) + Trivy (SCA)**: detecta inyecciones, XSS y CVEs en librerías de terceros |
 | **T1059** | Command and Scripting Interpreter | Execution | **Hipótesis de Hunting (Tier 3)**: búsqueda de `bash`, `python`, `powershell` en `/tmp` / `crontab` |
-| **T1070** | Indicator Removal | Defense Evasion | **SARIF + GitHub Security**: preserva evidencia aunque el atacante intente borrar logs |
+| **T1070** | Indicator Removal | Defense Evasion | **SARIF + 【entity-GitHub Security¦canonical_name=GitHub】**: preserva evidencia aunque el atacante intente borrar logs |
 | **T1021** | Remote Services | Lateral Movement | **UFW + Wazuh**: detecta movimiento lateral vía SSH/RDP/WinRM tras compromiso inicial |
 
 **Stack de respuesta:** `Wazuh SIEM` (recolección) → `Sigma rules` (detección) → `YARA` (clasificación) → `UFW firewall` (contención) → **DETECT · ANALYZE · RESPOND**
@@ -90,13 +90,17 @@ Cuando un analista realiza un cambio en los sistemas o configuraciones y ejecuta
 
 **¿Qué hace?** Escaneo profundo de secretos (API keys, tokens, `.env`, claves SSH) en código y en **historial completo de git**, no solo en el último commit.
 
-**Configuración endurecida en este pipeline:**
-- name: Gitleaks Secret Scan
+**Configuración unificada en este pipeline - Solo historial completo:**
+- name: Checkout completo del repositorio
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- name: Gitleaks Deep History Scan
   uses: gitleaks/gitleaks-action@v2
   with:
-    args: --redact --verbose --no-git --report-format=sarif --report-path=gitleaks.sarif
+    args: --redact --verbose --report-format=sarif --report-path=gitleaks.sarif
 
-> ⚠️ Nota: El bloque de arriba con `--no-git` solo mira archivos actuales. El escaneo de historial completo es el de abajo en Refuerzo Avanzado con `fetch-depth: 0` sin `--no-git`.
+> ✅ Unificado: Ya no hay bloque con `--no-git`. Siempre historial completo.
 
 **Hipótesis de caza basada en este laboratorio:**
 > Asumiendo compromiso previo por servicios endurecidos (vsftpd/21, SMBv1), ¿existe persistencia o movimiento lateral no detectado por controles preventivos?
@@ -134,7 +138,7 @@ fi
 
 - **Problema:** La instrucción `gh api ... > codeql-results.sarif` ejecuta una redirección directa en la shell. Si la conexión de red se degrada a mitad de la descarga, deja un archivo truncado e inválido. Un cortocircuito sutil con fallbacks genéricos de tipo `|| echo '{}'` expone al pipeline a una condición de carrera (*race condition*), donde el SOC Gate lee un archivo corrupto antes del formateo, asumiendo un estado limpio erróneo (falso 0).
 
-gh api -H "Accept: application/sarif+json" "repos/${{ 【entity-github¦canonical_name=GitHub】.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
+gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
 
 if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
   mv codeql-results.tmp codeql-results.sarif
@@ -173,7 +177,7 @@ Para elevar el nivel de garantía en auditorías técnicas y evitar puntos ciego
 
 **Control aplicado:** Se reemplaza el informe de respaldo vacío por un aborto específico (`exit 1`) con limpieza del búfer temporal, asegurando que ninguna caída de red o API degrade silenciosamente la postura de seguridad.
 
-gh api -H "Accept: application/sarif+json" "repos/${{ github.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
+gh api -H "Accept: application/sarif+json" "repos/${{ 【entity-github¦canonical_name=GitHub】.repository }}/code-scanning/analyses/$ANALYSIS_ID" > codeql-results.tmp
 
 if [ -s "codeql-results.tmp" ] && jq -e '.runs' codeql-results.tmp >/dev/null 2>&1; then
   mv codeql-results.tmp codeql-results.sarif
@@ -261,6 +265,17 @@ echo "Trivy: $VULNS vulnerabilidades detectadas - 0 es limpio, es OK"
 mkdir -p "$(dirname "$FINAL")"
 mv "$TMP" "$FINAL"
 
+#### D. Gestión de Excepciones Controladas - Sin Frenar al Equipo
+- **Problema:** Un falso positivo no debe bloquear un deploy para siempre.
+- **Solución:** Excepción aprobada, con dueño y caducidad, nunca bypass silencioso.
+- **Gitleaks:** `.gitleaksignore` solo con aprobación de CODEOWNERS / SecOps. Ej: token de ejemplo en docs/ que no es real, con comentario + fecha + ticket.
+- **Trivy:** `.trivyignore` solo con aprobación de CODEOWNERS / SecOps. Ej: CVE sin parche oficial, se acepta el riesgo temporalmente, con fecha de revisión.
+- **Reglas obligatorias:**
+    1. Nada se ignora sin PR + aprobación de SecOps
+    2. Toda excepción lleva: motivo + ticket + fecha de caducidad
+    3. Si caduca, vuelve a bloquear - Fail-Closed
+    4. En Grafana / Power BI se muestra como "Excepción Aprobada", no como "Limpio"
+
 #### 📊 Matriz de Trazabilidad de Garantía SOC (CC6.1 / A.8.26)
 
 | Vector de Ataque / Evasión | Control Implementado | Tipo de Control | Evidencia para Auditoría |
@@ -268,3 +283,5 @@ mv "$TMP" "$FINAL"
 | **Bypass Local (`--no-verify`)** | GitHub Push Protection + Gitleaks como Status Check | Preventivo / Detectivo | Logs de Push denegados + ejecución de Gitleaks en Actions |
 | **Modificación de Workflows** | CODEOWNERS + Rule Sets + SHA Pinning | Preventivo | PRs aprobados por SecOps + hashes inmutables en YAML |
 | **Falso Limpio por Caída de Red** | Patrón Atómico + `set -euo pipefail` + `jq -e` | Preventivo (Fail-Closed) | Logs CI/CD con Exit > 0 bloqueando deploy |
+
+**Autor:** Iván Ajenjo Morales | SOC Tier 1 / Tier 2 / Tier 3 ITIL SecOps | Licencia MIT
